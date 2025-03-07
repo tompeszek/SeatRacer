@@ -26,7 +26,7 @@ def seconds_to_time(seconds):
     """Convert seconds to MM:SS.x format."""
     minutes = int(seconds // 60)
     seconds_remaining = seconds % 60
-    return f"{minutes:02}:{seconds_remaining:05.1f}"
+    return f"{minutes:02}:{seconds_remaining:04.1f}"
 
 def determine_shell_class(row):
     athletes = row['athlete_count']
@@ -134,7 +134,9 @@ def run_ols_regression(data):
 
     comparison_df = pd.DataFrame({
         'Actual Pace': y.apply(lambda x: seconds_to_time(x)),
-        'Model Pace': fitted_values.apply(lambda x: seconds_to_time(x))
+        'Actual Pace Seconds': y,
+        'Model Pace': fitted_values.apply(lambda x: seconds_to_time(x)),
+        'Model Pace Seconds': fitted_values
     })
     comparison_df['Piece'] = df['Piece']
     comparison_df['Crew'] = df['Personnel']
