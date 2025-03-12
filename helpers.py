@@ -1,4 +1,5 @@
 # helpers.py
+from sklearn.linear_model import Ridge
 import statsmodels.api as sm
 import numpy as np
 import scipy.stats
@@ -150,10 +151,19 @@ def run_regression(data, selected_model):
             X[col] = X[col].astype(int)
 
     # Add a constant (intercept) to the model
-    X = sm.add_constant(X)
+    # X = sm.add_constant(X)
 
     # Fit the OLS model
     match selected_model:
+        case 'ridge':
+            model = Ridge(alpha=1.0)  # alpha controls regularization strength
+            model.fit(X, y)  # Pass X and y directly to the fit method
+            results = model
+            coefficients = model.coef_  # Coefficients for each feature
+            coef_df = pd.DataFrame(coefficients, index=X.columns, columns=['Coefficient'])
+            print(coef_df)
+            print(coef_df.to_string())
+
         case 'rlm':
             model = sm.RLM(y, X)         
         case 'wls':
@@ -165,7 +175,8 @@ def run_regression(data, selected_model):
         case _:  # Default to RLM
             model = sm.RLM(y, X)
 
-    results = model.fit()
+    if selected_model != 'ridge':
+        results = model.fit()
 
     print(results.summary())
     print(selected_model)
@@ -216,7 +227,9 @@ def run_regression(data, selected_model):
         'athletes': athletes_df,
         'factors': other_factors_df,
         'shell_classes': shell_classes_df,
-        'fitted': generate_fitted_values_vs_actual(df, results, athletes, shell_classes)
+        'fitted': generate_fitted_values_vs_actual(df, results, athletes, shell_classes),
+        'raw': df,
+        'corr': X.corr()
         }
 
 def append_rigging_to_names(df):
@@ -255,7 +268,8 @@ def generate_fitted_values_vs_actual(df, results, athletes, shell_classes):
     df_fitted = df.copy()
 
     # Compute fitted values
-    df_fitted['Fitted'] = results.predict(sm.add_constant(pd.get_dummies(df[['Piece'] + list(athletes) + list(shell_classes)], drop_first=True)))
+    # df_fitted['Fitted'] = results.predict(sm.add_constant(pd.get_dummies(df[['Piece'] + list(athletes) + list(shell_classes)], drop_first=True)))
+    df_fitted['Fitted'] = results.predict(pd.get_dummies(df[['Piece'] + list(athletes) + list(shell_classes)], drop_first=True))
 
     # Generate the Breakdown column
     def breakdown(row):

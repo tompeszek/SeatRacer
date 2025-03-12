@@ -58,7 +58,7 @@ shell_class = st.sidebar.segmented_control(
     'Include Shell Classes', 
     options=['2-', '4-', '4+', '8+'],
     selection_mode='multi',
-    default=['4-', '4+', '8+']
+    default=['2-', '4-', '4+', '8+']
 )
 
 remove_mixed = st.sidebar.radio("Remove Mixed Class Results (not working)", ["Yes", "No"], index=1)
@@ -79,6 +79,7 @@ st.sidebar.subheader("Models")
 
 # Grouping the models
 models = {
+    "Ridge Regression": "ridge",
     "Generalized Linear Model": "glm",
     "Weighted Least Squares": "wls",
     "Robust Linear Model*": "rlm",
@@ -157,8 +158,9 @@ shell_classes_df = results['shell_classes']
 
 
 # debug data
+# st.dataframe(results['fitted'])
 st.dataframe(results['fitted'])
-
+st.dataframe(results['corr'])
 
 # real presentation
 col1, col2 = st.columns([1, 1])
@@ -195,7 +197,7 @@ col5.subheader("Boat Classes")
 generate_side_chart(col5, shell_classes_df, "Boat Classes")
 
 col6.subheader("Coxswains")
-coxswains_df = athletes_df.loc[athletes_df.index.isin(coxswains)]
+coxswains_df = athletes_df.loc[athletes_df.index.isin(coxswains)].copy()
 generate_side_chart(col6, coxswains_df, "Coxswains")
 
 # st.divider()
