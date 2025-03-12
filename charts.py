@@ -4,11 +4,13 @@ import numpy as np
 import pandas as pd
 
 def compute_probability_matrix(df, num_samples=10000):
+    df = df.copy()
+    
     rowers = df.index.tolist()
 
     # Estimate standard deviation from confidence interval (assuming normal dist)
-    df["StdDev"] = (df["Upper"] - df["Lower"]) / 3.92
-
+    df.loc[:, "StdDev"] = (df["Upper"] - df["Lower"]) / 3.92
+    
     # Generate samples for each athlete
     samples = {
         rower: np.random.normal(df.loc[rower, "Coefficient"], df.loc[rower, "StdDev"], num_samples)
@@ -29,7 +31,7 @@ def compute_probability_matrix(df, num_samples=10000):
     return prob_matrix
 
 
-def generate_side_chart(col1, side_df, side_label):
+def generate_side_chart(col1, side_df, side_label, show_coefficient=False):
     add_speed(side_df)
 
     # Establish a common x-axis range
@@ -54,5 +56,6 @@ def generate_side_chart(col1, side_df, side_label):
     col1.dataframe(
         side_df.sort_values(by="Speed"),
         column_config=column_config,
-        column_order=["Rower", "Behind", "Plus/Minus", "Likelihood Chart"]
+        column_order = ["Rower", "Behind"] + (["Coefficient"] if show_coefficient else []) + ["Plus/Minus", "Likelihood Chart"]
+
     )

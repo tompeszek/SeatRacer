@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from helpers import *
 from charts import *
+import os
 
 st.set_page_config(
     layout="wide",
@@ -20,16 +21,7 @@ def save_changes():
     st.session_state.current_data = edited_dataframe
 
 if 'current_data' not in st.session_state:
-    # Define the initial dataframe with empty values
-    # st.session_state.current_data = pd.DataFrame({
-    #     'Race Session (date)': [''] * 5,
-    #     'Piece': [0.0] * 5,
-    #     'KM': [0.0] * 5,
-    #     'Rigging': [''] * 5,
-    #     'Personnel': [''] * 5,
-    #     'Result': ['00:00.00'] * 5
-    # })
-    file_path = r'./data/2024_hocr_racing.csv'  # Adjust the file path if necessary
+    file_path = r'./data/2012.csv'
     st.session_state.current_data = pd.read_csv(file_path)
 
 if 'show_uploader' not in st.session_state:
@@ -39,14 +31,75 @@ if 'show_editor' not in st.session_state:
     st.session_state.show_editor = True
 
 # Sidebar dataset selection
+data_folder = './data'
+def load_data_on_change():    
+    file_path = os.path.join(data_folder, dataset_selected)
+    st.session_state.current_data = pd.read_csv(file_path)
+
+
+### Sidebar
+## Dataset section
 st.sidebar.subheader("Dataset")
-# dataset_selected = st.sidebar.radio("Dataset", ('HOCR 2024', 'Olympics 2021'), label_visibility='collapsed')
+dataset_selected = st.sidebar.radio(
+    "Dataset",
+    [f for f in os.listdir(data_folder) if os.path.isfile(os.path.join(data_folder, f))],
+    label_visibility='collapsed',
+    on_change=load_data_on_change
+)
 
-
-# Always show both toggles in the sidebar
+# Toggles
 show_uploader = st.sidebar.toggle('Show file uploader', key="uploader", value=st.session_state.show_uploader)
 show_editor = st.sidebar.toggle('Edit Race Data', key="editor", value=st.session_state.show_editor)
 
+## Data Filters
+st.sidebar.divider()
+st.sidebar.subheader("Data Filters")
+shell_class = st.sidebar.segmented_control(
+    'Include Shell Classes', 
+    options=['2-', '4-', '4+', '8+'],
+    selection_mode='multi',
+    default=['4-', '4+', '8+']
+)
+
+remove_mixed = st.sidebar.radio("Remove Mixed Class Results (not working)", ["Yes", "No"], index=1)
+
+weight_closeness = st.sidebar.slider("Weight Closeness", min_value=0, max_value=100, value=50, step=1)
+
+## Parameters
+st.sidebar.divider()
+st.sidebar.subheader("Include Parameters")
+
+# Checkbox options
+include_equipment = st.sidebar.checkbox('Equipment')
+include_coxswains = st.sidebar.checkbox('Coxswains')
+
+# Models
+st.sidebar.divider()
+st.sidebar.subheader("Models")
+
+# Grouping the models
+models = {
+    "Generalized Linear Model": "glm",
+    "Weighted Least Squares": "wls",
+    "Robust Linear Model*": "rlm",
+    "Ordinary Least Squares*": "ols"
+}
+
+select_model = st.sidebar.radio(
+    "Model", models, index=0, label_visibility='collapsed'
+)
+st.sidebar.markdown("_Models with * are not recommended_")
+
+
+## Over Time
+st.sidebar.divider()
+st.sidebar.subheader("Evalation Over Time")
+
+lookback_days = st.sidebar.slider('Lookback Days', 1, 100, 50)
+lookback_weighting = st.sidebar.segmented_control('Lookback Weighting', ['Uniform', 'Linear', 'Log', 'Exp'])
+
+
+### Main UI
 # File upload section (only visible if uploader toggle is on)
 if show_uploader:
     uploaded_file = st.file_uploader("Choose a file")
@@ -57,12 +110,10 @@ if show_uploader:
 
         # Update session state to hide uploader and show editor
         st.session_state.show_uploader = False
-        st.session_state.show_editor = True
+        # st.session_state.show_editor = True
 
         # I hate this, this can't be right
         st.rerun()
-
-
 
 if show_editor:
     # Display editable dataframe
@@ -71,46 +122,58 @@ if show_editor:
     st.button("Save changes", on_click=save_changes)
     st.divider()
 
-st.sidebar.divider()
-st.sidebar.subheader("Include Parameters")
-
-# Checkbox options
-include_equipment = st.sidebar.checkbox('Equipment')
-include_coxswains = st.sidebar.checkbox('Coxswains')
-
-st.sidebar.divider()
-st.sidebar.subheader("Evalation Over Time")
-
-# Slider for range selection
-
-lookback_days = st.sidebar.slider('Lookback Days', 1, 100, 50)
-lookback_weighting = st.sidebar.segmented_control('Lookback Weighting', ['Uniform', 'Linear', 'Log', 'Exp'])
 
 
+### App Code
+# Copy data and add fields (athlete counts, shell class)
+df = st.session_state.current_data.copy()
+add_athlete_counts(df)
+df['shell_class'] = df.apply(determine_shell_class, axis=1)
+
+# Apply shell class filter
+filtered_data = df[df['shell_class'].isin(shell_class)]
+
+# Add sides to names  (also adds coxswain to personnel if needed)
+filtered_data = append_rigging_to_names(filtered_data)
+
+# Add piece names
+filtered_data['Piece'] = filtered_data['Race Session (date)'].astype(str) + " #" + filtered_data['Piece'].astype(str)
+
+# Remove mixed if needed
+if remove_mixed == 'Yes':
+    # filtered_data = filtered_data[filtered_data['shell_class'] != 'Mixed']    
+    print(df[['shell_class', 'Piece']].head(30))
+
+# Add piece weights
 
 
-# Run the OLS regression
-results = run_ols_regression(st.session_state.current_data)
+# Sides count
+sides_count = get_rower_sides_count(filtered_data)
+
+# Run regression
+results = run_regression(filtered_data, models[select_model])
 athletes_df = results['athletes']
+shell_classes_df = results['shell_classes']
 
 
+# debug data
+st.dataframe(results['fitted'])
 
+
+# real presentation
 col1, col2 = st.columns([1, 1])
-starboard_rowers = [rower for rower, sides in results['sides'].items() if sides['Starboard'] > 0]
-port_rowers = [rower for rower, sides in results['sides'].items() if sides['Port'] > 0]
-coxswains = [rower for rower, sides in results['sides'].items() if sides['Coxswain'] > 0]
-scullers = [rower for rower, sides in results['sides'].items() if sides['Scull'] > 0]
+starboard_rowers = [rower for rower, sides in sides_count.items() if sides['Starboard'] > 0]
+port_rowers = [rower for rower, sides in sides_count.items() if sides['Port'] > 0]
+coxswains = [rower for rower, sides in sides_count.items() if sides['Coxswain'] > 0]
+scullers = [rower for rower, sides in sides_count.items() if sides['Scull'] > 0]
 
 
 col1.subheader("Starboard")
-starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)]
+starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)].copy()
 generate_side_chart(col1, starboard_df, "Starboard")
 
-
-
-
 col2.subheader("Port")
-port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)]
+port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)].copy()
 generate_side_chart(col2, port_df, "Port")
 
 
@@ -125,13 +188,15 @@ prob_matrix = compute_probability_matrix(port_df)
 col4.subheader("Port Matrix")
 col4.dataframe(prob_matrix)
 
-# col3.subheader("Shells")
-# starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)]
-# generate_side_chart(col3, starboard_df, "Starboard")
+st.divider()
 
-# col4.subheader("Coxswains")
-# starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)]
-# generate_side_chart(col4, starboard_df, "Starboard")
+col5, col6 = st.columns([1, 1])
+col5.subheader("Boat Classes")
+generate_side_chart(col5, shell_classes_df, "Boat Classes")
+
+col6.subheader("Coxswains")
+coxswains_df = athletes_df.loc[athletes_df.index.isin(coxswains)]
+generate_side_chart(col6, coxswains_df, "Coxswains")
 
 # st.divider()
 
