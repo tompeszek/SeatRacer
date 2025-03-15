@@ -6,17 +6,14 @@ import scipy.stats
 import pandas as pd
 from datetime import datetime
 
+from grouping import group_highly_correlated_parameters
+
 def generate_common_x_range(df, num_points=50):
     """Generate a shared x-axis range for all rows based on min/max of CI."""
     global_x_min = df["Lower"].min()
     global_x_max = df["Upper"].max()
     return np.linspace(global_x_min, global_x_max, num_points)  # Shared x-axis
 
-def generate_likelihood(row, x_vals):
-    """Generate likelihood values (y-axis) based on a normal distribution."""
-    mean = row["Coefficient"]
-    std_dev = (row["Upper"] - row["Lower"]) / 3.92  # Approximate 95% CI to std dev
-    return scipy.stats.norm.pdf(x_vals, mean, std_dev).tolist()
 
 def time_to_seconds(time_str):
     """Convert time in MM:SS.x or MM:SS format to seconds."""
@@ -36,6 +33,29 @@ def seconds_to_time(seconds):
 def add_athlete_counts(df):
     df['athlete_count'] = df['Rigging'].apply(lambda x: len(x.split('/')))    
 
+def get_rigging_options(boat_class):
+    match boat_class:
+        case '2-':
+            return ['p/s', 's/p']
+        case '2x':
+            return ['x/x']
+        case '2x+':
+            return ['x/x/c']
+        case '4-':
+            return ['p/s/p/s', 's/p/s/p']
+        case '4x':
+            return ['x/x/x/x']
+        case '4x+':
+            return ['x/x/x/x/c']
+        case '8+':
+            return ['c/p/s/p/s/p/s/p/s', 'c/s/p/s/p/s/p/s/p']
+        case '8x':
+            return ['x/x/x/x/x/x/x/x']
+        case '8x+':
+            return ['x/x/x/x/x/x/x/x/c']
+        case _:
+            return []    
+
 def determine_shell_class(row):
     athletes = row['athlete_count']
     is_sculling = 'x' in row['Rigging']
@@ -52,6 +72,23 @@ def determine_shell_class(row):
 
     return boat_class
 
+def determine_shell_class_from_list(rowers):
+    athletes = len(rowers)
+    is_sculling = any('ˣ' in r for r in rowers)  # Assuming 'ˣ' marks sculling rowers
+    has_cox = athletes % 2 == 1 and athletes > 1
+    rower_count = athletes - (1 if has_cox else 0)
+
+    boat_class = str(rower_count)
+    if is_sculling:
+        boat_class += "x"
+    if has_cox:
+        boat_class += "+"
+    if not is_sculling and not has_cox:
+        boat_class += "-"
+
+    return boat_class
+
+
 def add_speed(df):
     fastest = df['Coefficient'].min()
     df['Speed'] = df['Coefficient'] - fastest
@@ -62,12 +99,7 @@ def add_speed(df):
     )
     return df
 
-def generate_likelihood(row, x_vals):
-    """Generate likelihood values (y-axis) based on a normal distribution."""
-    mean = row["Coefficient"]
-    std_dev = (row["Upper"] - row["Lower"]) / 3.92  # Approximate 95% CI to std dev
-    y_vals = scipy.stats.norm.pdf(x_vals, mean, std_dev)  # Compute normal distribution
-    return y_vals.tolist()
+
 
 def pascal_case(name):
     if name.lower().startswith("mc") and len(name) > 2:
@@ -100,7 +132,37 @@ def get_rower_sides_count(df):
 
     return rower_sides_count
 
-def run_regression(data, selected_model):
+def run_regression(data, selected_model, max_correlation=1.0, halflife=None): 
+    # If recency_weight is not None, calculate the recency weight for each observation
+    if halflife is not None and type(halflife) == float and halflife > 0:
+        # Convert 'Race Session (date)' to datetime format
+        data['Race Session (date)'] = pd.to_datetime(data['Race Session (date)'])
+        
+        # Sort data by date (most recent to earliest)
+        data = data.sort_values('Race Session (date)')
+        
+        # Calculate the days since the most recent race
+        data['days_since_latest'] = (data['Race Session (date)'].max() - data['Race Session (date)']).dt.days
+        
+        # Exponential decay: Weight should decay half for each halflife days
+        data['recency_factor'] = np.exp(-data['days_since_latest'] / halflife)
+        
+        # Ensure a minimum weight of 0.1 to prevent vanishing weights for very old races
+        data['recency_factor'] = data['recency_factor'].clip(lower=0.1)
+        
+        # Apply scale factor to adjust the weight range (e.g., scale the min weight to 1)
+        scale_factor = 1 / data['recency_factor'].min()  # Make minimum weight 1
+        data['scaled_recency_factor'] = data['recency_factor'] * scale_factor
+        
+        # Ensure that scaled recency factors are within a reasonable range (optional)
+        data['scaled_recency_factor'] = data['scaled_recency_factor'].clip(upper=10)  # Set max weight cap
+        
+        # Use scaled_recency_factor as the weight for the GLM model
+        weights = data['scaled_recency_factor']
+    else:
+        # If no halflife is provided, use equal weights (default 1 for all)
+        weights = None
+
     # Convert the data into a pandas DataFrame
     df = pd.DataFrame(data)
     print(df)
@@ -167,11 +229,11 @@ def run_regression(data, selected_model):
         case 'rlm':
             model = sm.RLM(y, X)         
         case 'wls':
-            model = sm.WLS(y, X, weights=1.0 / df['StdDev'] ** 2)        
+            model = sm.WLS(y, X, freq_weights=weights)       
         case 'ols':
             model = sm.OLS(y, X)
-        case 'glm':
-            model = sm.GLM(y, X, family=sm.families.Gaussian())
+        case 'glm':            
+            model = sm.GLM(y, X, family=sm.families.Gaussian(), freq_weights=weights)
         case _:  # Default to RLM
             model = sm.RLM(y, X)
 
@@ -180,6 +242,8 @@ def run_regression(data, selected_model):
 
     print(results.summary())
     print(selected_model)
+    print(f"recency_halflife: {halflife}")
+    print(f"weights: {weights}")
 
     fitted_values = results.predict(X)
     # print(fitted_values)
@@ -220,6 +284,15 @@ def run_regression(data, selected_model):
     })
     other_factors_df.set_index('Factor', inplace=True)
 
+    # Deal with correlations
+    correlations = group_highly_correlated_parameters(X.corr(), threshold=max_correlation)
+
+    athletes_to_remove = set()
+    for group in correlations:
+        athletes_to_remove.update(group)
+
+    # Remove those athletes from athletes_df
+    athletes_df = athletes_df.drop(index=athletes_to_remove, errors='ignore')
 
     return {
         'results': results,
@@ -229,7 +302,8 @@ def run_regression(data, selected_model):
         'shell_classes': shell_classes_df,
         'fitted': generate_fitted_values_vs_actual(df, results, athletes, shell_classes),
         'raw': df,
-        'corr': X.corr()
+        'corr': X.corr(),
+        # 'removed': highly_correlated_groups = group_highly_correlated_parameters(results['corr'], threshold=0.85)
         }
 
 def append_rigging_to_names(df):

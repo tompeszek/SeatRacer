@@ -1,0 +1,4 @@
+# ~/.streamlit/config.toml
+[theme]
+#base="dark"
+font = "B612"  # This sets the font to B612 (if available)
