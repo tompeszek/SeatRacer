@@ -28,19 +28,23 @@ html, body, [class*="css"] {
 </style>
 """, unsafe_allow_html=True)
 
+results = None
+
+def clear_data():
+    st.session_state.current_data = pd.DataFrame()
+
 # Edit Race Data section (only visible if editor toggle is on)
 def save_changes():
     st.session_state.current_data = edited_dataframe
 
-if 'current_data' not in st.session_state:
-    file_path = r'./data/2012.csv'
-    st.session_state.current_data = pd.read_csv(file_path)
-
 # Sidebar dataset selection
 data_folder = './data'
-def load_data_on_change():    
-    file_path = os.path.join(data_folder, dataset_selected)
-    st.session_state.current_data = pd.read_csv(file_path)
+# def load_data_on_change(dataset_selected):    
+#     file_path = os.path.join(data_folder, dataset_selected)
+#     st.session_state.current_data = pd.read_csv(file_path)
+
+if 'current_data' not in st.session_state:
+    clear_data()
 
 
 
@@ -74,7 +78,10 @@ select_model = st.sidebar.radio(
 st.sidebar.markdown("_Models with * are not recommended_")
 
 # Weighting
-days_diff = (pd.to_datetime(st.session_state.current_data['Race Session (date)']).max() - pd.to_datetime(st.session_state.current_data['Race Session (date)']).min()).days
+if not st.session_state.current_data.empty:
+    days_diff = (pd.to_datetime(st.session_state.current_data['Race Session (date)']).max() - pd.to_datetime(st.session_state.current_data['Race Session (date)']).min()).days
+else:
+    days_diff = 0
 # options = {
 #     "Off": None,         # No weighting
 #     "Some": days_diff / 4.0,
@@ -119,26 +126,30 @@ lookback_weighting = st.sidebar.segmented_control('Lookback Weighting', ['Unifor
 
 ### App Code
 # Copy data and add fields (athlete counts, shell class)
-df = st.session_state.current_data.copy()
-add_athlete_counts(df)
-df['shell_class'] = df.apply(determine_shell_class, axis=1)
+if not st.session_state.current_data.empty:
+    df = st.session_state.current_data.copy()
+    add_athlete_counts(df)
+    df['shell_class'] = df.apply(determine_shell_class, axis=1)
 
-# Apply shell class filter
-filtered_data = df[df['shell_class'].isin(shell_class)]
+    # Apply shell class filter
+    filtered_data = df[df['shell_class'].isin(shell_class)]
 
-# Add sides to names  (also adds coxswain to personnel if needed)
-filtered_data = append_rigging_to_names(filtered_data)
+    # Add sides to names  (also adds coxswain to personnel if needed)
+    filtered_data = append_rigging_to_names(filtered_data)
 
-# Add piece names
-filtered_data['Piece'] = filtered_data['Race Session (date)'].astype(str) + " #" + filtered_data['Piece'].astype(str)
+    # Only go forward if there is data:
+    if not filtered_data.empty:
 
-# Sides count
-sides_count = get_rower_sides_count(filtered_data)
+        # Add piece names
+        filtered_data['Piece'] = filtered_data['Race Session (date)'].astype(str) + " #" + filtered_data['Piece'].astype(str)
 
-# Run regression
-results = run_regression(filtered_data, models[select_model], max_correlation, halflife)
-athletes_df = results['athletes']
-shell_classes_df = results['shell_classes']
+        # Sides count
+        sides_count = get_rower_sides_count(filtered_data)
+
+        # Run regression
+        results = run_regression(filtered_data, models[select_model], max_correlation, halflife)
+        athletes_df = results['athletes']
+        shell_classes_df = results['shell_classes']        
 
 ### Main UI
 data_tab, performance_tab, corr_tab, validation_tab, debug_tab = st.tabs(["Data", "Performance", "Correlations", "Validation", "Debug"])
@@ -146,13 +157,15 @@ data_tab, performance_tab, corr_tab, validation_tab, debug_tab = st.tabs(["Data"
 with data_tab:
 
     ## Dataset section
-    st.subheader("Example Datasets")
-    dataset_selected = st.radio(
-        "Example Datasets",
-        [f for f in os.listdir(data_folder) if os.path.isfile(os.path.join(data_folder, f))],
-        label_visibility='collapsed',
-        on_change=load_data_on_change
-    )
+    st.subheader("Load Example Datasets")
+
+    dataset_files = [f for f in os.listdir(data_folder) if os.path.isfile(os.path.join(data_folder, f))]
+
+    for file in dataset_files:
+        if st.button(file):
+            file_path = os.path.join(data_folder, file)
+            st.session_state.current_data = pd.read_csv(file_path)
+            st.rerun()
 
     st.divider()
 
@@ -173,115 +186,130 @@ with data_tab:
     st.divider()
     st.subheader("Edit Racing Data")
     edited_dataframe = st.data_editor(st.session_state.current_data, num_rows= "dynamic")
-    st.button("Save changes", on_click=save_changes)
+
+    buttons_1, buttons_2, _ = st.columns([1, 1, 3])
+    buttons_1.button("Save changes", on_click=save_changes)
+    buttons_2.button("Clear data", on_click=clear_data)
 
 with performance_tab:
-    starboard_rowers = [rower for rower, sides in sides_count.items() if sides['Starboard'] > 0]
-    port_rowers = [rower for rower, sides in sides_count.items() if sides['Port'] > 0]
-    coxswains = [rower for rower, sides in sides_count.items() if sides['Coxswain'] > 0]
-    scullers = [rower for rower, sides in sides_count.items() if sides['Scull'] > 0]
+    if results is not None:
+        starboard_rowers = [rower for rower, sides in sides_count.items() if sides['Starboard'] > 0]
+        port_rowers = [rower for rower, sides in sides_count.items() if sides['Port'] > 0]
+        coxswains = [rower for rower, sides in sides_count.items() if sides['Coxswain'] > 0]
+        scullers = [rower for rower, sides in sides_count.items() if sides['Scull'] > 0]
 
-    col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns([1, 1])
 
-    with col1:
-        st.subheader("Starboard Coefficients")
-        starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)].copy()
-        generate_side_chart(st, starboard_df, "Starboard Coefficients")
+        with col1:
+            st.subheader("Starboard Coefficients")
+            starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)].copy()
+            generate_side_chart(st, starboard_df, "Starboard Coefficients")
+            st.divider()
+            starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
+            starboard_bar_chart = generate_confidence_bars_with_gradient(starboard_df, starboard_confidence)
+            st.altair_chart(starboard_bar_chart, use_container_width=True)        
+
+        with col2:
+            st.subheader("Port Coefficients")
+            port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)].copy()
+            generate_side_chart(st, port_df, "Port Coefficients")
+            st.divider()
+            port_confidence = st.slider("Confidence", key="port_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
+            port_bar_chart = generate_confidence_bars_with_gradient(port_df, port_confidence)
+            st.altair_chart(port_bar_chart, use_container_width=True)        
+
+
+
+
+
         st.divider()
-        starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
-        starboard_bar_chart = generate_confidence_bars_with_gradient(starboard_df, starboard_confidence)
-        st.altair_chart(starboard_bar_chart, use_container_width=True)        
 
-    with col2:
-        st.subheader("Port Coefficients")
-        port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)].copy()
-        generate_side_chart(st, port_df, "Port Coefficients")
+        col3, col4 = st.columns([1, 1])
+        prob_matrix = compute_probability_matrix(starboard_df)
+        col3.subheader("Starboard 1v1")
+        col3.dataframe(prob_matrix)
+
+        prob_matrix = compute_probability_matrix(port_df)
+        col4.subheader("Port 1v1")
+        col4.dataframe(prob_matrix)
+
         st.divider()
-        port_confidence = st.slider("Confidence", key="port_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
-        port_bar_chart = generate_confidence_bars_with_gradient(port_df, port_confidence)
-        st.altair_chart(port_bar_chart, use_container_width=True)        
 
+        col5, col6 = st.columns([1, 1])
+        # col5.subheader("Boat Classes")
+        # generate_side_chart(col5, shell_classes_df, "Boat Classes")
 
-
-
-
-    st.divider()
-
-    col3, col4 = st.columns([1, 1])
-    prob_matrix = compute_probability_matrix(starboard_df)
-    col3.subheader("Starboard 1v1")
-    col3.dataframe(prob_matrix)
-
-    prob_matrix = compute_probability_matrix(port_df)
-    col4.subheader("Port 1v1")
-    col4.dataframe(prob_matrix)
-
-    st.divider()
-
-    col5, col6 = st.columns([1, 1])
-    # col5.subheader("Boat Classes")
-    # generate_side_chart(col5, shell_classes_df, "Boat Classes")
-
-    col5.subheader("Coxswains")
-    coxswains_df = athletes_df.loc[athletes_df.index.isin(coxswains)].copy()
-    # generate_side_chart(col5, coxswains_df, "Coxswains")
+        col5.subheader("Coxswains")
+        coxswains_df = athletes_df.loc[athletes_df.index.isin(coxswains)].copy()
+        # generate_side_chart(col5, coxswains_df, "Coxswains")
+    else:
+        st.write("No data available.")
 
 with corr_tab:
     st.subheader("Correlation Matrix")
-    st.dataframe(results['corr'].round(2))
+    if results is not None:
+        st.dataframe(results['corr'].round(2))
+    else:
+        st.write("No data available.")
 
 with validation_tab:
     st.subheader("Lineup Testing")
-    athletes_list = sorted(athletes_df.index.tolist())
-    classes_list = sorted(shell_classes_df.index.tolist(), reverse=True)
 
-    col_v1, col_v2 = st.columns([1, 1])
-    with col_v1:
-        boat_class_1 = st.selectbox("Test Boat Class #1", classes_list, index=0)
-        boat_class_1 = st.selectbox("Rigging", classes_list, index=0)
-        left, mid, right = st.columns([2, 1, 2])
-        with mid:
-            st.write("Position")            
-        with left:
-            lineup_1 = st.multiselect("Left", athletes_list)
-        with right:
-            lineup_1_r = st.multiselect("Right", athletes_list)
-    
-    with col_v2:
-        boat_class_2 = st.selectbox("Test Boat Class #2", classes_list, index=0)
-        lineup_2 = st.multiselect("Test Lineup #2", athletes_list)
+    if results is not None:
+        athletes_list = sorted(athletes_df.index.tolist())
+        classes_list = sorted(shell_classes_df.index.tolist(), reverse=True)
 
-    if lineup_1 and lineup_2:
-        lineup_1_shell_class = determine_shell_class_from_list(lineup_1)
-        lineup_2_shell_class = determine_shell_class_from_list(lineup_2)
+        col_v1, col_v2 = st.columns([1, 1])
+        with col_v1:
+            boat_class_1 = st.selectbox("Test Boat Class #1", classes_list, index=0)
+            boat_class_1 = st.selectbox("Rigging", classes_list, index=0)
+            left, mid, right = st.columns([2, 1, 2])
+            with mid:
+                st.write("Position")            
+            with left:
+                lineup_1 = st.multiselect("Left", athletes_list)
+            with right:
+                lineup_1_r = st.multiselect("Right", athletes_list)
         
-        
-        if lineup_1_shell_class and lineup_2_shell_class and lineup_1_shell_class in classes_list and lineup_2_shell_class in classes_list:
-            lineup_1_coefficient = sum(athletes_df.loc[lineup_1, "Coefficient"]) + shell_classes_df.loc[lineup_1_shell_class, "Coefficient"]
-            lineup_2_coefficient = sum(athletes_df.loc[lineup_2, "Coefficient"]) + shell_classes_df.loc[lineup_2_shell_class, "Coefficient"]
-            st.write(f"Lineup 1: {lineup_1_coefficient:.2f}")
-            st.write(f"Lineup 2: {lineup_2_coefficient:.2f}")
-            st.write(f"Lineup 1 vs. Lineup 2: {lineup_1_coefficient - lineup_2_coefficient:.2f}")
-        elif lineup_1 and lineup_2:
-            if lineup_1_shell_class not in classes_list and lineup_2_shell_class not in classes_list:
-                if lineup_1_shell_class == lineup_2_shell_class:
-                    st.write(f"No data available for shell class {lineup_1_shell_class}.")
-                else:    
-                    st.write(f"No data available for shell classes {lineup_1_shell_class} and {lineup_2_shell_class}.")
-            elif lineup_1_shell_class not in classes_list:
-                st.write(f"No shell class data available for Lineup 1: {lineup_1_shell_class}")
-            elif lineup_2_shell_class not in classes_list:
-                st.write(f"No shell class data available for Lineup 2: {lineup_2_shell_class}")
+        with col_v2:
+            boat_class_2 = st.selectbox("Test Boat Class #2", classes_list, index=0)
+            lineup_2 = st.multiselect("Test Lineup #2", athletes_list)
+
+        if lineup_1 and lineup_2:
+            lineup_1_shell_class = determine_shell_class_from_list(lineup_1)
+            lineup_2_shell_class = determine_shell_class_from_list(lineup_2)
+            
+            
+            if lineup_1_shell_class and lineup_2_shell_class and lineup_1_shell_class in classes_list and lineup_2_shell_class in classes_list:
+                lineup_1_coefficient = sum(athletes_df.loc[lineup_1, "Coefficient"]) + shell_classes_df.loc[lineup_1_shell_class, "Coefficient"]
+                lineup_2_coefficient = sum(athletes_df.loc[lineup_2, "Coefficient"]) + shell_classes_df.loc[lineup_2_shell_class, "Coefficient"]
+                st.write(f"Lineup 1: {lineup_1_coefficient:.2f}")
+                st.write(f"Lineup 2: {lineup_2_coefficient:.2f}")
+                st.write(f"Lineup 1 vs. Lineup 2: {lineup_1_coefficient - lineup_2_coefficient:.2f}")
+            elif lineup_1 and lineup_2:
+                if lineup_1_shell_class not in classes_list and lineup_2_shell_class not in classes_list:
+                    if lineup_1_shell_class == lineup_2_shell_class:
+                        st.write(f"No data available for shell class {lineup_1_shell_class}.")
+                    else:    
+                        st.write(f"No data available for shell classes {lineup_1_shell_class} and {lineup_2_shell_class}.")
+                elif lineup_1_shell_class not in classes_list:
+                    st.write(f"No shell class data available for Lineup 1: {lineup_1_shell_class}")
+                elif lineup_2_shell_class not in classes_list:
+                    st.write(f"No shell class data available for Lineup 2: {lineup_2_shell_class}")
 
 
-    st.subheader("Actual vs. Model")
-    st.dataframe(results['comparison'], hide_index=True) #height=300
-
+        st.subheader("Actual vs. Model")
+        st.dataframe(results['comparison'], hide_index=True) #height=300
+    else:
+        st.write("No data available.")
     
 
 with debug_tab:
-    # debug data    
-    highly_correlated_groups = group_highly_correlated_parameters(results['corr'], threshold=max_correlation)
+    if results is not None:
+        # debug data    
+        highly_correlated_groups = group_highly_correlated_parameters(results['corr'], threshold=max_correlation)
 
-    for i, group in enumerate(highly_correlated_groups, 1):
-        print(f"Group {i}: {group}")
+        for i, group in enumerate(highly_correlated_groups, 1):
+            print(f"Group {i}: {group}")    
+    else:
+        st.write("No data available.")
