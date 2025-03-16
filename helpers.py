@@ -1,5 +1,5 @@
 # helpers.py
-from sklearn.linear_model import Ridge
+# from sklearn.linear_model import Ridge
 import statsmodels.api as sm
 import numpy as np
 import scipy.stats
@@ -217,14 +217,14 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
 
     # Fit the OLS model
     match selected_model:
-        case 'ridge':
-            model = Ridge(alpha=1.0)  # alpha controls regularization strength
-            model.fit(X, y)  # Pass X and y directly to the fit method
-            results = model
-            coefficients = model.coef_  # Coefficients for each feature
-            coef_df = pd.DataFrame(coefficients, index=X.columns, columns=['Coefficient'])
-            print(coef_df)
-            print(coef_df.to_string())
+        # case 'ridge':
+        #     model = Ridge(alpha=1.0)  # alpha controls regularization strength
+        #     model.fit(X, y)  # Pass X and y directly to the fit method
+        #     results = model
+        #     coefficients = model.coef_  # Coefficients for each feature
+        #     coef_df = pd.DataFrame(coefficients, index=X.columns, columns=['Coefficient'])
+        #     print(coef_df)
+        #     print(coef_df.to_string())
 
         case 'rlm':
             model = sm.RLM(y, X)         
