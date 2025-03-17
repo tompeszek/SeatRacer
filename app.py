@@ -268,8 +268,13 @@ with performance_tab:
             st.altair_chart(port_bar_chart, use_container_width=True)
 
         st.subheader("One-on-One Probabilities")
-        st.write("_Faster rower on the left_")
+        st.write("_Probability of the rower in the first column outperforming the rowers listed in the first row_")
         col3, col4 = st.columns([1, 1])
+        st.markdown(
+            "<style> td:first-child { font-weight: bold; } </style>", 
+            unsafe_allow_html=True
+        )
+
         prob_matrix = compute_probability_matrix(starboard_df).sort_index()
         prob_matrix = prob_matrix[sorted(prob_matrix.columns)]
         col3.write("Starboard")
