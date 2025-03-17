@@ -31,7 +31,8 @@ def seconds_to_time(seconds):
     return f"{minutes:02}:{seconds_remaining:04.1f}"
 
 def add_athlete_counts(df):
-    df['athlete_count'] = df['Rigging'].apply(lambda x: len(x.split('/')))    
+    df['athlete_count'] = df['Rigging'].apply(lambda x: len(x.split('/')))
+    df['rower_count'] = df['Rigging'].apply(lambda x: len([i for i in x.split('/') if 'c' not in i]))
 
 def get_rigging_options(boat_class):
     match boat_class:
@@ -57,12 +58,14 @@ def get_rigging_options(boat_class):
             return []    
 
 def determine_shell_class(row):
+    print(row)
     athletes = row['athlete_count']
-    is_sculling = 'x' in row['Rigging']
-    has_cox = athletes % 2 == 1 and athletes > 1
-    rower_count = athletes - (1 if has_cox else 0)
+    rowers = row['rower_count']
 
-    boat_class = str(rower_count)
+    is_sculling = 'x' in row['Rigging']
+    has_cox = athletes != rowers
+
+    boat_class = str(rowers)
     if is_sculling:
         boat_class = boat_class + "x"
     if has_cox:
@@ -74,7 +77,7 @@ def determine_shell_class(row):
 
 def determine_shell_class_from_list(rowers):
     athletes = len(rowers)
-    is_sculling = any('ˣ' in r for r in rowers)  # Assuming 'ˣ' marks sculling rowers
+    is_sculling = any('ˣ' in r for r in rowers)
     has_cox = athletes % 2 == 1 and athletes > 1
     rower_count = athletes - (1 if has_cox else 0)
 
@@ -102,13 +105,14 @@ def add_speed(df):
 
 
 def pascal_case(name):
-    if name.lower().startswith("mc") and len(name) > 2:
-        return "Mc" + name[2:].capitalize()
-    return name.title()
+    # if name.lower().startswith("mc") and len(name) > 2:
+    #     return "Mc" + name[2:].capitalize()
+    # return name.title()
+    return name
 
 def get_rower_sides_count(df):
     # Check sides
-    athletes = df['Personnel'].str.split('/', expand=True).stack().unique()
+    athletes = [pascal_case(name) for name in df['Personnel'].str.split('/', expand=True).stack().unique()]
     rower_sides_count = {p: {'Starboard': 0, 'Port': 0, 'Scull': 0, 'Coxswain': 0} for p in athletes}
 
     for index, row in df.iterrows():
@@ -241,9 +245,7 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
         results = model.fit()
 
     print(results.summary())
-    print(selected_model)
-    print(f"recency_halflife: {halflife}")
-    print(f"weights: {weights}")
+    # print(f"weights: {weights}")
 
     fitted_values = results.predict(X)
     # print(fitted_values)
@@ -256,9 +258,11 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
     })
     comparison_df['Piece'] = df['Piece']
     comparison_df['Crew'] = df['Personnel']
+    comparison_df['shell_class'] = df['shell_class']
+    comparison_df['athlete_count'] = df['athlete_count']
     # comparison_df['Index'] = df['Piece'] + " " + df['Personnel']
     comparison_df['Delta'] = (y - fitted_values).round(2)
-    comparison_df = comparison_df[['Piece', 'Crew', 'Actual Pace', 'Model Pace', 'Delta']]
+    comparison_df = comparison_df[['Piece', 'Crew', 'Actual Pace', 'Model Pace', 'Delta', 'athlete_count', 'shell_class']]
 
     athletes_df = pd.DataFrame({
         'Rower': athletes,
@@ -303,6 +307,7 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
         'fitted': generate_fitted_values_vs_actual(df, results, athletes, shell_classes),
         'raw': df,
         'corr': X.corr(),
+        'weights': weights,
         # 'removed': highly_correlated_groups = group_highly_correlated_parameters(results['corr'], threshold=0.85)
         }
 
@@ -322,7 +327,7 @@ def append_rigging_to_names(df):
 
         elif len(rigging_list) != len(personnel_list):
             raise ValueError(f"Rigging and Personnel lists are not the same length: {row}")
-
+        
         return '/'.join(f"{name}{rig_map.get(rig, '')}" for name, rig in zip(personnel_list, rigging_list))
 
     df['Personnel'] = df.apply(process_row, axis=1)

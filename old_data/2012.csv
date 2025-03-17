@@ -1,4 +1,4 @@
-﻿Race Session (date),Piece,KM,Rigging,Personnel,Result
+Race Session (date),Piece,KM,Rigging,Personnel,Result
 1/5/2012,1,4,c/p/s/p/s,Gennaro/Bertoldo/Banks/Monaghan,13:05
 1/5/2012,1,4,c/p/s/p/s,Struzyna/Otto/Shald/Koven,13:09
 1/5/2012,1,4,p/s,McEachern/Guregian,14:52
@@ -14,7 +14,7 @@
 1/7/2012,11,2,p/s,Shald/Monaghan,07:19.0
 1/7/2012,2,2,c/p/s/p/s,"Walsh/Coppola/James,R./Peszek",06:24.0
 1/7/2012,2,2,c/p/s/p/s,"Inman/Kasprzyk/Stafford/James,G.",06:24.0
-1/7/2012,12,2,c/p/s/p/s/p/s/p/s,Gennaro/Bertoldo/Struzyna/Otto/McEachern/Guregian/Banks/Monaghan,05:49.0
+1/7/2012,12,2,c/p/s/p/s/p/s/p/s,Gennaro/Bertoldo/Struzyna/Otto/McEachern/Guregian/Banks/MONAGHAN,05:49.0
 1/7/2012,12,2,p/s,Shald/Koven,07:09.0
 1/7/2012,3,2,c/p/s/p/s,Walsh/Coppola/Stafford/Peszek,06:30.8
 1/7/2012,3,2,c/p/s/p/s,"Inman/Kasprzyk/James,R./James,G.",06:35.0
@@ -117,7 +117,7 @@
 1/28/2012,2,1.2,c/p/s/p/s,"Stafford/McEachern/James,R./Monaghan",03:40.9
 1/28/2012,12,1.2,c/p/s/p/s,Walsh/Kasprzyk/Banks/Guregian,03:34.8
 1/28/2012,12,1.2,c/p/s/p/s,Inman/Coppola/Blomquist/Peszek,03:38.0
-1/28/2012,3,1.2,c/p/s/p/s,Struzyna/Otto/Shald/Monaghan,03:41.9
+1/28/2012,3,1.2,c/p/s/p/s,Struzyna/Otto/Shald/MONAGHAN,03:41.9
 1/28/2012,3,1.2,c/p/s/p/s,"Stafford/McEachern/James,R./Koven",03:44.3
 1/28/2012,13,1.2,c/p/s/p/s,Walsh/Coppola/Banks/Guregian,03:38.1
 1/28/2012,13,1.2,c/p/s/p/s,Inman/Kasprzyk/Blomquist/Peszek,03:38.0
@@ -138,7 +138,7 @@
 1/31/2012,4,2,p/s/p/s,Walsh/Coppola/Banks/Otto,06:31.8
 1/31/2012,4,2,p/s/p/s,Inman/Kasprzyk/Blomquist/Peszek,06:33.7
 1/31/2012,14,2,c/p/s/p/s,"Stafford/Guregian/James,R./James,G.",06:39.7
-1/31/2012,14,2,c/p/s/p/s,Struzyna/Bertoldo/Shald/Monaghan,06:52.6
+1/31/2012,14,2,c/p/s/p/s,Struzyna/Bertoldo/Shald/MONAGHAN,06:52.6
 2/3/2012,1,2,c/s/p/s/p/s/p/s/p,Cole/Gennaro/Rummel/Cornelius/Newlin/Ochal/Miller/Lanzone,05:37.0
 2/3/2012,1,2,c/p/s/p/s/p/s/p/s,"Stafford/Coppola/Walsh/Kasprzyk/Inman/Peszek/Banks/James,G.",05:39.8
 2/3/2012,1,2,c/p/s/p/s/p/s/p/s,"Blomquist/Bertoldo/Struzyna/Otto/Shald/Guregian/James,R./Monaghan",05:41.0
@@ -203,7 +203,7 @@
 2/19/2012,2,1,c/p/s/p/s/p/s/p/s,"Walsh/Otto/Blomquist/Newlin/James,R./Bertoldo/Gennaro/Monaghan",02:47.2
 2/19/2012,2,1,c/p/s/p/s/p/s/p/s,"Stafford/Peszek/Inman/Kasprzyk/Lanzone/Guregian/Banks/James,G.",02:49.0
 2/19/2012,3,1,c/p/s/p/s/p/s/p/s,"Walsh/Otto/Blomquist/Newlin/James,R./Bertoldo/Gennaro/James,G.",02:44.8
-2/19/2012,3,1,c/p/s/p/s/p/s/p/s,Stafford/Peszek/Inman/Kasprzyk/Lanzone/Guregian/Banks/Monaghan,02:46.1
+2/19/2012,3,1,c/p/s/p/s/p/s/p/s,Stafford/Peszek/Inman/Kasprzyk/Lanzone/Guregian/Banks/MONAGHAN,02:46.1
 2/23/2012,1,3.4,c/p/s/p/s/p/s/p/s,"Walsh/Kasprzyk/Blomquist/Newlin/Lanzone/Peszek/Banks/James,G.",11:02.0
 2/23/2012,1,3.4,c/p/s/p/s/p/s/p/s,Stafford/Otto/Inman/Coppola/Struzyna/Bertoldo/Gennaro/Monaghan,11:12.0
 2/23/2012,2,3.4,c/p/s/p/s/p/s/p/s,"Walsh/Kasprzyk/Blomquist/Newlin/Lanzone/Peszek/Banks/James,G.",09:41.0
@@ -213,10 +213,10 @@
 2/25/2012,1,1.5,c/p/s/p/s,"Blomquist/Newlin/Lanzone/James,G.",04:39.3
 2/25/2012,1,1.5,c/p/s/p/s,Inman/Otto/Stafford/Monaghan,04:41.3
 2/25/2012,1,1.5,c/p/s/p/s,Walsh/Kasprzyk/Banks/Peszek,04:40.5
-2/25/2012,2,1.5,c/p/s/p/s,"Inman/Newlin/Lanzone/James,G.",04:38.2
+2/25/2012,2,1.5,c/p/s/p/s,"INMAN/Newlin/Lanzone/James,G.",04:38.2
 2/25/2012,2,1.5,c/p/s/p/s,Blomquist/Otto/Stafford/Monaghan,04:37.3
 2/25/2012,2,1.5,c/p/s/p/s,Walsh/Kasprzyk/Banks/Peszek,04:38.1
-2/25/2012,3,1.5,c/p/s/p/s,Inman/Newlin/Lanzone/Monaghan,04:38.1
+2/25/2012,3,1.5,c/p/s/p/s,Inman/Newlin/Lanzone/MONAGHAN,04:38.1
 2/25/2012,3,1.5,c/p/s/p/s,"Blomquist/Otto/Stafford/James,G.",04:38.1
 2/25/2012,3,1.5,c/p/s/p/s,Walsh/Kasprzyk/Banks/Peszek,04:41.3
 2/25/2012,1,1,p/s,"James,R./Guregian",03:24.0
@@ -249,7 +249,7 @@
 3/4/2012,1,2,c/p/s/p/s/p/s/p/s,"James,R./Otto/Struzyna/Bertoldo/Banks/Guregian/Gennaro/Monaghan",05:35.0
 3/4/2012,1,2,c/p/s/p/s/p/s/p/s,"Walsh/Newlin/Blomquist/Kasprzyk/Inman/James,G./Lanzone/Peszek",05:36.5
 3/4/2012,2,2,c/p/s/p/s/p/s/p/s,"Walsh/Newlin/Blomquist/Kasprzyk/James,R./James,G./Lanzone/Peszek",05:39.8
-3/4/2012,2,2,c/p/s/p/s/p/s/p/s,Inman/Otto/Struzyna/Bertoldo/Banks/Guregian/Gennaro/Monaghan,05:41.0
+3/4/2012,2,2,c/p/s/p/s/p/s/p/s,INMAN/Otto/Struzyna/Bertoldo/Banks/Guregian/Gennaro/Monaghan,05:41.0
 3/4/2012,3,1,c/p/s/p/s/p/s/p/s,"Walsh/Otto/Banks/Kasprzyk/James,R./James,G./Lanzone/Peszek",02:42.6
 3/4/2012,3,1,c/p/s/p/s/p/s/p/s,Inman/Newlin/Struzyna/Bertoldo/Blomquist/Guregian/Gennaro/Monaghan,02:45.4
 3/8/2012,1,3.9,c/p/s/p/s/p/s/p/s,"James,R./Otto/Struzyna/Newlin/Banks/James,G./Gennaro/Monaghan",11:30.3
@@ -270,14 +270,14 @@
 3/13/2012,1,11.8,c/p/s/p/s/p/s/p/s,"Gennaro/James,G./Walsh/Bertoldo/Struzyna/Guregian/Inman/Monaghan",38:34.0
 3/17/2012,1,1.25,c/p/s/p/s/p/s/p/s,"James,R./Otto/Banks/Newlin/Walsh/James,G./Struzyna/Peszek",03:30.0
 3/17/2012,1,1.25,c/p/s/p/s/p/s/p/s,Gennaro/Coppola/Inman/Kasprzyk/Blomquist/Guregian/Lanzone/Monaghan,03:30.3
-3/17/2012,2,1.25,c/p/s/p/s/p/s/p/s,"James,R./Otto/Banks/Newlin/Inman/James,G./Struzyna/Peszek",03:30.1
+3/17/2012,2,1.25,c/p/s/p/s/p/s/p/s,"James,R./Otto/Banks/Newlin/INMAN/James,G./Struzyna/Peszek",03:30.1
 3/17/2012,2,1.25,c/p/s/p/s/p/s/p/s,Gennaro/Coppola/Walsh/Kasprzyk/Blomquist/Guregian/Lanzone/Monaghan,03:30.0
 3/17/2012,3,1.25,c/p/s/p/s/p/s/p/s,"James,R./Otto/Banks/Newlin/Blomquist/James,G./Struzyna/Peszek",03:30.0
-3/17/2012,3,1.25,c/p/s/p/s/p/s/p/s,Gennaro/Coppola/Walsh/Kasprzyk/Inman/Guregian/Lanzone/Monaghan,03:32.7
+3/17/2012,3,1.25,c/p/s/p/s/p/s/p/s,Gennaro/Coppola/Walsh/Kasprzyk/INMAN/Guregian/Lanzone/Monaghan,03:32.7
 3/18/2012,1,1.2,c/p/s/p/s/p/s/p/s,"James,R./Guregian/Blomquist/Kasprzyk/Banks/Monaghan/Gennaro/James,G.",03:17.6
 3/18/2012,1,1.2,c/p/s/p/s/p/s/p/s,Walsh/Coppola/Inman/Newlin/Lanzone/Bertoldo/Struzyna/Peszek,03:20.1
 3/18/2012,2,1.2,c/p/s/p/s/p/s/p/s,"James,R./Guregian/Blomquist/Kasprzyk/Banks/Bertoldo/Gennaro/James,G.",03:26.4
-3/18/2012,2,1.2,c/p/s/p/s/p/s/p/s,Walsh/Coppola/Inman/Newlin/Lanzone/Monaghan/Struzyna/Peszek,03:32.2
+3/18/2012,2,1.2,c/p/s/p/s/p/s/p/s,Walsh/Coppola/Inman/Newlin/Lanzone/MONAGHAN/Struzyna/Peszek,03:32.2
 3/21/2012,1,1.2,c/p/s/p/s/p/s/p/s,"James,R./Miller/Banks/Newlin/Blomquist/Kasprzyk/Lanzone/Peszek",03:15.0
 3/21/2012,1,1.2,c/p/s/p/s/p/s/p/s,"Inman/Guregian/Walsh/Otto/Struzyna/Coppola/Gennaro/James,G.",03:18.2
 3/21/2012,2,1.2,c/p/s/p/s/p/s/p/s,"James,R./Miller/Banks/Otto/Blomquist/Kasprzyk/Lanzone/Peszek",03:20.3
@@ -293,14 +293,14 @@
 3/25/2012,1,1.5,c/p/s/p/s/p/s/p/s,"James,R./Otto/Banks/Kasprzyk/Blomquist/Miller/Gennaro/Peszek",04:01.2
 3/25/2012,1,1.5,c/p/s/p/s/p/s/p/s,"Inman/James,G./Lanzone/Newlin/Walsh/Coppola/Struzyna/Guregian",04:03.3
 3/25/2012,2,1.5,c/p/s/p/s/p/s/p/s,"James,R./Otto/Banks/Kasprzyk/Blomquist/James,G./Gennaro/Peszek",04:02.1
-3/25/2012,2,1.5,c/p/s/p/s/p/s/p/s,Inman/Miller/Lanzone/Newlin/Walsh/Coppola/Struzyna/Guregian,04:04.6
-3/25/2012,3,1.5,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Kasprzyk/Blomquist/Miller/Gennaro/Peszek",04:05.1
+3/25/2012,2,1.5,c/p/s/p/s/p/s/p/s,Inman/MILLER/Lanzone/Newlin/Walsh/Coppola/Struzyna/Guregian,04:04.6
+3/25/2012,3,1.5,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Kasprzyk/Blomquist/MILLER/Gennaro/Peszek",04:05.1
 3/25/2012,3,1.5,c/p/s/p/s/p/s/p/s,Inman/Otto/Lanzone/Newlin/Walsh/Coppola/Struzyna/Guregian,04:09.7
 3/28/2012,1,1.25,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Newlin/Blomquist/Kasprzyk/Cornelius/Peszek",03:21.1
 3/28/2012,1,1.25,c/p/s/p/s/p/s/p/s,Gennaro/Guregian/Walsh/Otto/Lanzone/Bertoldo/Struzyna/Miller,03:25.8
 3/28/2012,2,1.25,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Otto/Blomquist/Kasprzyk/Cornelius/Peszek",03:20.5
 3/28/2012,2,1.25,c/p/s/p/s/p/s/p/s,Gennaro/Guregian/Walsh/Newlin/Lanzone/Bertoldo/Struzyna/Miller,03:23.3
-3/28/2012,3,1.25,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Otto/Blomquist/Kasprzyk/Cornelius/Miller",03:20.9
+3/28/2012,3,1.25,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Otto/Blomquist/Kasprzyk/Cornelius/MILLER",03:20.9
 3/28/2012,3,1.25,c/p/s/p/s/p/s/p/s,Gennaro/Guregian/Walsh/Newlin/Lanzone/Bertoldo/Struzyna/Peszek,03:25.6
 3/30/2012,1,1.25,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Otto/Blomquist/Kasprzyk/Cornelius/Miller",03:21.0
 3/30/2012,1,1.25,c/p/s/p/s/p/s/p/s,Gennaro/Peszek/Walsh/Newlin/Lanzone/Guregian/Struzyna/Monaghan,03:22.6
@@ -313,11 +313,11 @@
 4/9/2012,1,1.5,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Kasprzyk/Cornelius/Newlin/Lanzone/Miller",04:00.0
 4/9/2012,1,1.5,c/p/s/p/s/p/s/p/s,Stafford/Peszek/Blomquist/Otto/Struzyna/Guregian/Gennaro/Monaghan,04:05.2
 4/9/2012,2,1.5,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Kasprzyk/Blomquist/Newlin/Lanzone/Miller",04:06.0
-4/9/2012,2,1.5,c/p/s/p/s/p/s/p/s,Stafford/Peszek/Cornelius/Otto/Struzyna/Guregian/Gennaro/Monaghan,04:12.8
+4/9/2012,2,1.5,c/p/s/p/s/p/s/p/s,Stafford/Peszek/CORNELIUS/Otto/Struzyna/Guregian/Gennaro/Monaghan,04:12.8
 4/10/2012,1,1.5,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Kasprzyk/Cornelius/Newlin/Lanzone/Miller",04:08.5
 4/10/2012,1,1.5,c/p/s/p/s/p/s/p/s,Gennaro/Otto/Blomquist/Coppola/Walsh/Bertoldo/Stafford/Peszek,04:11.1
 4/10/2012,2,1.5,c/p/s/p/s/p/s/p/s,"James,R./James,G./Banks/Kasprzyk/Blomquist/Newlin/Lanzone/Miller",04:13.7
-4/10/2012,2,1.5,c/p/s/p/s/p/s/p/s,Gennaro/Otto/Cornelius/Coppola/Walsh/Bertoldo/Stafford/Peszek,04:15.8
+4/10/2012,2,1.5,c/p/s/p/s/p/s/p/s,Gennaro/Otto/CORNELIUS/Coppola/Walsh/Bertoldo/Stafford/Peszek,04:15.8
 4/15/2012,1,1.5,c/s/p/s/p/s/p/s/p,"James,G./Banks/Kasprzyk/Cornelius/Newlin/Blomquist/Miller/Lanzone",04:05.6
 4/15/2012,1,1.5,c/p/s/p/s/p/s/p/s,"Gennaro/Otto/James,R./Coppola/Walsh/Bertoldo/Stafford/Peszek",04:09.7
 4/15/2012,2,1.5,c/s/p/s/p/s/p/s/p,"James,G./Banks/Kasprzyk/Cornelius/Newlin/Stafford/Miller/Lanzone",04:05.4

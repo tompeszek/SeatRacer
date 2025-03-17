@@ -90,9 +90,9 @@ else:
 # }
 recency_options = {
     "Off": None,         # No weighting
-    "Some": 21.0,
+    "Some": 210.0,
     "Medium": 56.0,
-    "Max": 210.0,
+    "Max": 21.0,
 }
 if models[select_model] in (['glm', 'wls']):
     st.sidebar.divider()
@@ -133,7 +133,6 @@ if not st.session_state.current_data.empty:
 
     # Apply shell class filter
     filtered_data = df[df['shell_class'].isin(shell_class)]
-
     # Add sides to names  (also adds coxswain to personnel if needed)
     filtered_data = append_rigging_to_names(filtered_data)
 
@@ -198,39 +197,45 @@ with performance_tab:
         coxswains = [rower for rower, sides in sides_count.items() if sides['Coxswain'] > 0]
         scullers = [rower for rower, sides in sides_count.items() if sides['Scull'] > 0]
 
+        st.subheader("Speed Coefficients")
+        coefficient_boat_classes = ["8+", "4+/-", "2-"]
+        st.write("_Number of seconds, per 500m, faster than average_")
         col1, col2 = st.columns([1, 1])
-
         with col1:
-            st.subheader("Starboard Coefficients")
+            st.write("Starboard")
             starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)].copy()
-            generate_side_chart(st, starboard_df, "Starboard Coefficients")
-            st.divider()
-            starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
-            starboard_bar_chart = generate_confidence_bars_with_gradient(starboard_df, starboard_confidence)
-            st.altair_chart(starboard_bar_chart, use_container_width=True)        
+            generate_side_chart(st, starboard_df, "Starboard Coefficients")            
 
         with col2:
-            st.subheader("Port Coefficients")
+            st.write("Port")
             port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)].copy()
             generate_side_chart(st, port_df, "Port Coefficients")
-            st.divider()
+            
+        st.subheader("Confidence Intervals")
+        bars_chart_starboard, bars_chart_port = st.columns([1, 1])
+        with bars_chart_starboard:
+            st.write("Starboard")
+            starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
+            starboard_bar_chart = generate_confidence_bars_with_gradient(starboard_df, starboard_confidence)
+            st.altair_chart(starboard_bar_chart, use_container_width=True)       
+        
+        with bars_chart_port:
+            st.write("Port")            
             port_confidence = st.slider("Confidence", key="port_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
             port_bar_chart = generate_confidence_bars_with_gradient(port_df, port_confidence)
-            st.altair_chart(port_bar_chart, use_container_width=True)        
+            st.altair_chart(port_bar_chart, use_container_width=True)
 
-
-
-
-
-        st.divider()
-
+        st.subheader("One-on-One Probabilities")
+        st.write("_Faster rower on the left_")
         col3, col4 = st.columns([1, 1])
-        prob_matrix = compute_probability_matrix(starboard_df)
-        col3.subheader("Starboard 1v1")
+        prob_matrix = compute_probability_matrix(starboard_df).sort_index()
+        prob_matrix = prob_matrix[sorted(prob_matrix.columns)]
+        col3.write("Starboard")
         col3.dataframe(prob_matrix)
 
-        prob_matrix = compute_probability_matrix(port_df)
-        col4.subheader("Port 1v1")
+        prob_matrix = compute_probability_matrix(port_df).sort_index()
+        prob_matrix = prob_matrix[sorted(prob_matrix.columns)]
+        col4.write("Port")
         col4.dataframe(prob_matrix)
 
         st.divider()
@@ -247,6 +252,7 @@ with performance_tab:
 
 with corr_tab:
     st.subheader("Correlation Matrix")
+    st.write("_Shows how often certain rowers are boated with others. If the correlation is too great (≥ 0.5 or ≤ -0.5), the model cannot effectively separate the performances of each rower_")
     if results is not None:
         st.dataframe(results['corr'].round(2))
     else:
@@ -306,10 +312,14 @@ with validation_tab:
 
 with debug_tab:
     if results is not None:
-        # debug data    
+        st.subheader("Piece Weights")
+        st.dataframe(results['weights'])
+
+        # debug data
+        st.subheader("Correlated Groups")   
         highly_correlated_groups = group_highly_correlated_parameters(results['corr'], threshold=max_correlation)
 
         for i, group in enumerate(highly_correlated_groups, 1):
-            print(f"Group {i}: {group}")    
+            st.write(f"Group {i}: {group}")    
     else:
         st.write("No data available.")

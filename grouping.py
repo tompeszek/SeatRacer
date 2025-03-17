@@ -23,7 +23,7 @@ def group_highly_correlated_parameters(correlation_matrix, threshold=0.8):
     # Add edges for highly correlated pairs
     for i in range(len(correlation_matrix.columns)):
         for j in range(i + 1, len(correlation_matrix.columns)):
-            if abs(correlation_matrix.iloc[i, j]) >= threshold:
+            if abs(correlation_matrix.iloc[i, j]) > threshold:
                 G.add_edge(correlation_matrix.columns[i], correlation_matrix.columns[j])
 
     # Find connected components (highly correlated groups)

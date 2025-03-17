@@ -4,8 +4,10 @@ from helpers import *
 import streamlit as st
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
-def compute_probability_matrix(df, num_samples=10000):
+
+def compute_probability_matrix_monte_carlo(df, num_samples=10000):
     df = df.copy()
     
     rowers = df.index.tolist()
@@ -29,6 +31,30 @@ def compute_probability_matrix(df, num_samples=10000):
             else:
                 # Compute probability as percentage and store it directly
                 prob_matrix.loc[row1, row2] = f"{np.mean(samples[row1] < samples[row2]) * 100:.0f}%"
+
+    return prob_matrix
+
+def compute_probability_matrix(df):
+    df = df.copy()
+    rowers = df.index.tolist()
+    
+    # Estimate standard deviation from confidence interval (assuming normal dist)
+    df.loc[:, "StdDev"] = (df["Upper"] - df["Lower"]) / 3.92
+
+    # Create probability matrix
+    prob_matrix = pd.DataFrame(index=rowers, columns=rowers, dtype=object)
+
+    for row1 in rowers:
+        for row2 in rowers:
+            if row1 == row2:
+                prob_matrix.loc[row1, row2] = '-'  # Set diagonal values as '-'
+            else:
+                mu_A, mu_B = df.loc[row1, "Coefficient"], df.loc[row2, "Coefficient"]
+                sigma_A, sigma_B = df.loc[row1, "StdDev"], df.loc[row2, "StdDev"]
+                
+                # Compute probability using normal CDF
+                z_score = (mu_B - mu_A) / np.sqrt(sigma_A**2 + sigma_B**2)
+                prob_matrix.loc[row1, row2] = f"{norm.cdf(z_score) * 100:.0f}%"
 
     return prob_matrix
 
@@ -150,8 +176,8 @@ def generate_confidence_bars_with_gradient(side_df, confidence=50):
         lower_percentile = scipy.stats.norm.ppf(0.5 - ((confidence/2.0) / 100.0), mean, std_dev)
         upper_percentile = scipy.stats.norm.ppf(0.5 + ((confidence/2.0) / 100.0), mean, std_dev) # 25/75% for 95% CI
 
-        lower_percentile_label = "test"
-        upper_percentile_label = "test2"
+        lower_percentile_label = "Upper Limit"
+        upper_percentile_label = "Lower Limit"
         
         # Add rower and their confidence interval to the chart data
         chart_data.append({
