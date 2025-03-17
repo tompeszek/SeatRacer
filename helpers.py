@@ -58,7 +58,7 @@ def get_rigging_options(boat_class):
             return []    
 
 def determine_shell_class(row):
-    print(row)
+    # print(row)
     athletes = row['athlete_count']
     rowers = row['rower_count']
 
@@ -102,6 +102,25 @@ def add_speed(df):
     )
     return df
 
+def add_side_aware_speed(df): #not in use
+    df = df.copy()
+    print(df.index)
+
+    # Extract suffix (ᵖ, ˢ, ᶜ, ˣ) from athlete names
+    df["Suffix"] = df.index.to_series().str.extract(r'([ᵖˢᶜˣ])$')[0]
+
+    # Determine the fastest athlete per suffix group
+    fastest_by_suffix = df.groupby("Suffix")["Coefficient"].transform("min")
+
+    # Compute speed relative to the fastest in each suffix group
+    df["Speed"] = df["Coefficient"] - fastest_by_suffix
+    df["Behind"] = df["Speed"].apply(lambda x: f"+{round(x, 1)}" if x > 0 else "-")
+    df["Max/Min"] = df.apply(
+        lambda row: f"{round(row['Lower'] - row['Coefficient'], 1)} to {round(row['Upper'] - row['Coefficient'], 1)}",
+        axis=1
+    )
+
+    return df
 
 
 def pascal_case(name):
@@ -136,7 +155,9 @@ def get_rower_sides_count(df):
 
     return rower_sides_count
 
-def run_regression(data, selected_model, max_correlation=1.0, halflife=None): 
+def run_regression(data, selected_model, max_correlation=None, halflife=None):
+    max_correlation = max_correlation if max_correlation is not None else float("inf")
+
     # If recency_weight is not None, calculate the recency weight for each observation
     if halflife is not None and type(halflife) == float and halflife > 0:
         # Convert 'Race Session (date)' to datetime format
@@ -169,7 +190,7 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
 
     # Convert the data into a pandas DataFrame
     df = pd.DataFrame(data)
-    print(df)
+    # print(df)
 
     # All athlete names
     athletes = df['Personnel']\
@@ -244,7 +265,7 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
     if selected_model != 'ridge':
         results = model.fit()
 
-    print(results.summary())
+    # print(results.summary())
     # print(f"weights: {weights}")
 
     fitted_values = results.predict(X)
@@ -270,7 +291,7 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
         'Lower': results.conf_int()[0][athletes].round(1),  # Lower bound of the confidence interval (2.5%)
         'Upper': results.conf_int()[1][athletes].round(1)   # Upper bound of the confidence interval (97.5%)
     })
-    athletes_df.set_index('Rower', inplace=True)
+    athletes_df.set_index('Rower', inplace=True)    
 
     shell_classes_df = pd.DataFrame({
         'Shell Class': shell_classes,
@@ -288,15 +309,40 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
     })
     other_factors_df.set_index('Factor', inplace=True)
 
-    # Deal with correlations
-    correlations = group_highly_correlated_parameters(X.corr(), threshold=max_correlation)
+    ### Deal with correlations
+    # correlations = group_highly_correlated_parameters(X.corr(), threshold=max_correlation)
+
+    X_filtered = X.loc[:, X.columns.intersection(athletes)]
+    correlations = group_highly_correlated_parameters(X_filtered.corr(), threshold=max_correlation)
 
     athletes_to_remove = set()
-    for group in correlations:
-        athletes_to_remove.update(group)
+    athlete_groups = {}  # Dictionary to track group members
 
-    # Remove those athletes from athletes_df
+    for group in correlations:
+        for athlete in group:
+            athletes_to_remove.add(athlete)
+            athlete_groups[athlete] = group  # Store full group for each athlete
+
+    # Separate dropped rows into a new DataFrame  
+    dropped_athletes_df = athletes_df.loc[athletes_df.index.intersection(athletes_to_remove)].copy()
+
+    # Add a column listing other athletes in the same group  
+    dropped_athletes_df["Group Members"] = dropped_athletes_df.index.map(lambda x: ", ".join(sorted(set(athlete_groups[x])))) # set(athlete_groups[x]) - {x}) <- to exclude self
+
+    # Compute group-wide sums  
+    dropped_athletes_df["Group Coefficient Sum"] = dropped_athletes_df["Group Members"].map(
+        lambda members: athletes_df.loc[members.split(", "), "Coefficient"].sum()
+    )
+    dropped_athletes_df["Group Upper Sum"] = dropped_athletes_df["Group Members"].map(
+        lambda members: athletes_df.loc[members.split(", "), "Upper"].sum()
+    )
+    dropped_athletes_df["Group Lower Sum"] = dropped_athletes_df["Group Members"].map(
+        lambda members: athletes_df.loc[members.split(", "), "Lower"].sum()
+    )
+
+    # Remove those athletes from athletes_df  
     athletes_df = athletes_df.drop(index=athletes_to_remove, errors='ignore')
+    athletes_df = add_side_aware_speed(athletes_df)
 
     return {
         'results': results,
@@ -308,7 +354,7 @@ def run_regression(data, selected_model, max_correlation=1.0, halflife=None):
         'raw': df,
         'corr': X.corr(),
         'weights': weights,
-        # 'removed': highly_correlated_groups = group_highly_correlated_parameters(results['corr'], threshold=0.85)
+        'dropped_athletes': dropped_athletes_df
         }
 
 def append_rigging_to_names(df):

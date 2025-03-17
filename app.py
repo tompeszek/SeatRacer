@@ -109,7 +109,7 @@ st.sidebar.divider()
 st.sidebar.subheader("Parameters")
 
 max_correlation = st.sidebar.slider("Max Allowed Correlation", min_value = 0.5, max_value = 1.0, value = 0.75, step = 0.01)
-max_uncertainty = st.sidebar.slider("Max Allowed Uncertainty", min_value = 5, max_value = 100, value = 20, step = 1)
+# max_uncertainty = st.sidebar.slider("Max Allowed Uncertainty", min_value = 5, max_value = 100, value = 10, step = 1)
 
 # Checkbox options
 include_equipment = st.sidebar.checkbox('Equipment')
@@ -148,10 +148,11 @@ if not st.session_state.current_data.empty:
         # Run regression
         results = run_regression(filtered_data, models[select_model], max_correlation, halflife)
         athletes_df = results['athletes']
+        dropped_athletes_df = results['dropped_athletes']
         shell_classes_df = results['shell_classes']        
 
 ### Main UI
-data_tab, performance_tab, corr_tab, validation_tab, debug_tab = st.tabs(["Data", "Performance", "Correlations", "Validation", "Debug"])
+data_tab, performance_tab, corr_tab, validation_tab, time_tab, debug_tab = st.tabs(["Data", "Performance", "Correlations", "Validation", "Over Time", "Debug"])
 
 with data_tab:
 
@@ -203,25 +204,66 @@ with performance_tab:
         col1, col2 = st.columns([1, 1])
         with col1:
             st.write("Starboard")
+            starboard_confidence = st.slider("Max Uncertainty", key="starboard_uncertainty", min_value = 5, max_value = 100, value = 10, step = 1)
             starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)].copy()
-            generate_side_chart(st, starboard_df, "Starboard Coefficients")            
+            generate_side_chart(st, starboard_df)
+
+            
 
         with col2:
             st.write("Port")
+            starboard_confidence = st.slider("Max Uncertainty", key="port_uncertainty", min_value = 5, max_value = 100, value = 10, step = 1)
             port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)].copy()
-            generate_side_chart(st, port_df, "Port Coefficients")
+            generate_side_chart(st, port_df)
             
+        if len(dropped_athletes_df) > 0:
+            # need to fix speed
+            starboard_dropped_df = dropped_athletes_df.loc[dropped_athletes_df.index.isin(starboard_rowers)].sort_index().copy()
+            port_dropped_df = dropped_athletes_df.loc[dropped_athletes_df.index.isin(port_rowers)].sort_index().copy()
+
+            starboard_best = min(starboard_df['Coefficient'])
+            port_best = min(port_df['Coefficient'])
+
+            def calculate_average_behind(df, starboard_best, port_best):
+                # Count occurrences of 'ᵖ' and 'ˢ' in the specified group column. 'c': 'ᶜ', 'x': 'ˣ')
+                df['Port Count'] = df['Group Members'].str.count("ᵖ")
+                df['Starboard Count'] = df['Group Members'].str.count("ˢ")
+                
+                # Calculate the 'Average Behind' value
+                df['Average Behind'] = round(
+                    (df['Group Coefficient Sum'] - (df['Starboard Count'] * starboard_best) - (df['Port Count'] * port_best)) /
+                    (df['Starboard Count'] + df['Port Count']), 1
+                ).apply(lambda x: f"+{round(x, 1)}" if x > 0 else "-")
+                
+                return df
+            
+            starboard_dropped_df = calculate_average_behind(starboard_dropped_df, starboard_best, port_best)
+            port_dropped_df = calculate_average_behind(port_dropped_df, starboard_best, port_best)
+
+            st.subheader("Dropped Rowers")
+            st.write("_Rowers with high uncertainty due to high colinearity_")
+            col_star, col_port = st.columns([1, 1])
+
+            with col_star:
+                st.write("Starboard")                
+                st.dataframe(starboard_dropped_df, column_order=["Group Members", "Average Behind"])
+            
+            with col_port:
+                st.write("Port")                
+                st.dataframe(port_dropped_df, column_order=["Group Members", "Average Behind"])
+
+        
         st.subheader("Confidence Intervals")
         bars_chart_starboard, bars_chart_port = st.columns([1, 1])
         with bars_chart_starboard:
             st.write("Starboard")
-            starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
+            starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
             starboard_bar_chart = generate_confidence_bars_with_gradient(starboard_df, starboard_confidence)
             st.altair_chart(starboard_bar_chart, use_container_width=True)       
         
         with bars_chart_port:
             st.write("Port")            
-            port_confidence = st.slider("Confidence", key="port_confidence", min_value=0, max_value=100, value=50, step=1, format="%d%%")
+            port_confidence = st.slider("Confidence", key="port_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
             port_bar_chart = generate_confidence_bars_with_gradient(port_df, port_confidence)
             st.altair_chart(port_bar_chart, use_container_width=True)
 
@@ -309,6 +351,13 @@ with validation_tab:
     else:
         st.write("No data available.")
     
+with time_tab:
+    st.subheader("Performance Over Time")
+    if results is not None:
+        st.write("Not implemented yet.")
+    else:
+        st.write("No data available.")
+
 
 with debug_tab:
     if results is not None:

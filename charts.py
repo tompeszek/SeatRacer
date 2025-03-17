@@ -64,8 +64,8 @@ def generate_likelihood(row, x_vals):
     std_dev = (row["Upper"] - row["Lower"]) / 3.92  # Approximate 95% CI to std dev
     return scipy.stats.norm.pdf(x_vals, mean, std_dev).tolist()
 
-def generate_side_chart(col1, side_df, side_label):
-    add_speed(side_df)
+def generate_side_chart(col1, side_df):
+    # add_speed(side_df)
 
     # Establish a common x-axis range
     global_x_min = side_df["Lower"].min()
