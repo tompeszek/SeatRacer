@@ -19,10 +19,10 @@ def time_to_seconds(time_str):
     """Convert time in MM:SS.x or MM:SS format to seconds."""
     if '.' in time_str:  # Handle MM:SS.x format
         time_obj = datetime.strptime(time_str, '%M:%S.%f')
-        return time_obj.minute * 60 + time_obj.second + time_obj.microsecond / 1e6
+        return time_obj.minute * 60.0 + time_obj.second + time_obj.microsecond / 1e6
     else:  # Handle MM:SS format
         time_obj = datetime.strptime(time_str, '%M:%S')
-        return time_obj.minute * 60 + time_obj.second
+        return time_obj.minute * 60.0 + time_obj.second
 
 def seconds_to_time(seconds):
     """Convert seconds to MM:SS.x format."""
@@ -102,9 +102,8 @@ def add_speed(df):
     )
     return df
 
-def add_side_aware_speed(df): #not in use
+def add_side_aware_speed(df):
     df = df.copy()
-    print(df.index)
 
     # Extract suffix (ᵖ, ˢ, ᶜ, ˣ) from athlete names
     df["Suffix"] = df.index.to_series().str.extract(r'([ᵖˢᶜˣ])$')[0]
@@ -155,42 +154,102 @@ def get_rower_sides_count(df):
 
     return rower_sides_count
 
-def run_regression(data, selected_model, max_correlation=None, halflife=None):
+def calculate_closest_margin(df):
+    """
+    Calculates the closest margin for each row in the dataframe based on 'time_seconds' 
+    within the same 'piece'. The closest margin is the absolute difference to the nearest 
+    result within the same piece.
+    """
+    
+    df = df.copy()  # Avoid modifying the original DataFrame
+    df['closest_margin'] = np.inf  # Initialize column
+
+    # Ensure 'time_seconds' is a numeric type, forcing conversion to float
+    df['time_seconds'] = pd.to_numeric(df['time_seconds'], errors='coerce')
+
+    for piece in df['Piece'].unique():
+        piece_mask = df['Piece'] == piece
+        times = df.loc[piece_mask, 'time_seconds'].values  # Ensure it's a numpy array of numbers
+
+        if len(times) < 2:
+            df.loc[piece_mask, 'closest_margin'] = np.inf  # No comparison possible
+            continue
+
+        # Compute pairwise absolute differences using broadcasting
+        time_diffs = np.abs(times[:, None] - times)  # Matrix of differences
+        np.fill_diagonal(time_diffs, np.inf)  # Ignore self-comparison
+
+        # Get the minimum difference for each row
+        closest_margins = np.min(time_diffs, axis=1)
+
+        # Assign closest margin values back to the DataFrame
+        df.loc[piece_mask, 'closest_margin'] = closest_margins
+
+    return df
+
+def run_regression(df, selected_model, max_correlation=None, halflife=None, weight_close=None, weight_stern=None, include_coxswains=True):
     max_correlation = max_correlation if max_correlation is not None else float("inf")
+
+    # Convert Result times to seconds and then calculate time per 500m
+    df['time_seconds'] = df['Result'].apply(time_to_seconds)
+    df['time_per_500m'] = df['time_seconds'] / (df['KM'] * 2.0)  # Adjust time per 500m
+
+    df = calculate_closest_margin(df)
+
+    if weight_close is not None:
+        # Margin greater than 12" may as well just be 12"
+        max_margin = 12
+
+        # Parameters
+        weight_at_baseline = 2  # Weight at the baseline margin (0)
+        scaling_factor = 2  # Determines the rate of decay
+
+        # Apply the decay using the logarithmic scale such that weight at closest_margin == weight_close is half the baseline weight
+        df['scaled_closeness_factor'] = 1 * np.exp(-np.log(2) * np.clip(df['closest_margin'], None, max_margin) / weight_close)
+
+        # Clip values to avoid extreme small weights, set minimum limit if necessary
+        df['scaled_closeness_factor'] = df['scaled_closeness_factor'].clip(lower=0.1)    
+    
+    else:
+        df['scaled_closeness_factor'] = 1
 
     # If recency_weight is not None, calculate the recency weight for each observation
     if halflife is not None and type(halflife) == float and halflife > 0:
         # Convert 'Race Session (date)' to datetime format
-        data['Race Session (date)'] = pd.to_datetime(data['Race Session (date)'])
+        df['Race Session (date)'] = pd.to_datetime(df['Race Session (date)'])
         
-        # Sort data by date (most recent to earliest)
-        data = data.sort_values('Race Session (date)')
+        # Sort df by date (most recent to earliest)
+        df = df.sort_values('Race Session (date)')
         
         # Calculate the days since the most recent race
-        data['days_since_latest'] = (data['Race Session (date)'].max() - data['Race Session (date)']).dt.days
+        df['days_since_latest'] = (df['Race Session (date)'].max() - df['Race Session (date)']).dt.days
         
         # Exponential decay: Weight should decay half for each halflife days
-        data['recency_factor'] = np.exp(-data['days_since_latest'] / halflife)
+        df['recency_factor'] = np.exp(-df['days_since_latest'] / halflife)
         
         # Ensure a minimum weight of 0.1 to prevent vanishing weights for very old races
-        data['recency_factor'] = data['recency_factor'].clip(lower=0.1)
+        df['recency_factor'] = df['recency_factor'].clip(lower=0.1)
         
         # Apply scale factor to adjust the weight range (e.g., scale the min weight to 1)
-        scale_factor = 1 / data['recency_factor'].min()  # Make minimum weight 1
-        data['scaled_recency_factor'] = data['recency_factor'] * scale_factor
+        scale_factor = 1 / df['recency_factor'].min()  # Make minimum weight 1
+        df['scaled_recency_factor'] = df['recency_factor'] * scale_factor
         
         # Ensure that scaled recency factors are within a reasonable range (optional)
-        data['scaled_recency_factor'] = data['scaled_recency_factor'].clip(upper=10)  # Set max weight cap
+        df['scaled_recency_factor'] = df['scaled_recency_factor'].clip(upper=10)  # Set max weight cap
         
         # Use scaled_recency_factor as the weight for the GLM model
-        weights = data['scaled_recency_factor']
+        weights = df['scaled_recency_factor']
     else:
         # If no halflife is provided, use equal weights (default 1 for all)
-        weights = None
+        df['scaled_recency_factor'] = 1
 
-    # Convert the data into a pandas DataFrame
-    df = pd.DataFrame(data)
+    df['total_weight'] = df['scaled_recency_factor'] * df['scaled_closeness_factor']
+    weights = df['total_weight']
+    # weights = df['scaled_closeness_factor']
+
     # print(df)
+    # Calculate the weight based on race margin
+    # print(weight_close)
 
     # All athlete names
     athletes = df['Personnel']\
@@ -199,12 +258,11 @@ def run_regression(data, selected_model, max_correlation=None, halflife=None):
         .apply(pascal_case)\
         .unique()
     
+    # Ignore coxwains if needed
+    athletes = [athlete for athlete in athletes if include_coxswains or not athlete.endswith('ᶜ')]
+    
     # Get shell classes    
     shell_classes = df['shell_class'].unique()   
-
-    # Convert Result times to seconds and then calculate time per 500m
-    df['time_seconds'] = df['Result'].apply(time_to_seconds)
-    df['time_per_500m'] = df['time_seconds'] / (df['KM'] * 2.0)  # Adjust time per 500m
 
     # Proportional encode (was one-hot) the rowers' names by splitting and applying dummy encoding    
     def apply_weight(row):

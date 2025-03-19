@@ -8,6 +8,8 @@ from weighting import *
 from grouping import *
 import os
 
+hide_models = True
+
 st.set_page_config(
     layout="wide",
     page_title="SeatRacer",
@@ -59,10 +61,7 @@ shell_class = st.sidebar.segmented_control(
     default=['2-', '4-', '4+', '8+']
 )
 
-# Models
-st.sidebar.divider()
-st.sidebar.subheader("Models")
-
+### Models
 # Grouping the models
 models = {
     # "Ridge Regression": "ridge",
@@ -72,36 +71,72 @@ models = {
     "Ordinary Least Squares*": "ols"
 }
 
-select_model = st.sidebar.radio(
-    "Model", models, index=0, label_visibility='collapsed'
-)
-st.sidebar.markdown("_Models with * are not recommended_")
+if hide_models:
+    select_model = 'Generalized Linear Model'
+else:
+    st.sidebar.divider()
+    st.sidebar.subheader("Models")
+    select_model = st.sidebar.radio(
+        "Model", models, index=0, label_visibility='collapsed'
+    )
+    st.sidebar.markdown("_Models with * are not recommended_")
 
 # Weighting
-if not st.session_state.current_data.empty:
-    days_diff = (pd.to_datetime(st.session_state.current_data['Race Session (date)']).max() - pd.to_datetime(st.session_state.current_data['Race Session (date)']).min()).days
-else:
-    days_diff = 0
-# options = {
-#     "Off": None,         # No weighting
-#     "Some": days_diff / 4.0,
-#     "Medium": days_diff / 2.0,
-#     "Max": days_diff * 2.0,
-# }
-recency_options = {
-    "Off": None,         # No weighting
-    "Some": 210.0,
-    "Medium": 56.0,
-    "Max": 21.0,
-}
 if models[select_model] in (['glm', 'wls']):
+    if not st.session_state.current_data.empty:
+        days_diff = (pd.to_datetime(st.session_state.current_data['Race Session (date)']).max() - pd.to_datetime(st.session_state.current_data['Race Session (date)']).min()).days
+    else:
+        days_diff = 0
+        
+    recency_options = {
+        "Off": None,
+        "Low": 210.0,
+        "Medium": 56.0,
+        "High": 21.0,
+    }
+
     st.sidebar.divider()
-    st.sidebar.subheader("Model Weights")
-    weight_close = st.sidebar.slider("Close Pieces (not working)", min_value=0, max_value=100, value=50, step=1)
-    recency_halflife = st.sidebar.radio("Recency Weighting", list(recency_options.keys()), horizontal=False, index=2)
+    st.sidebar.header("Model Weights")
+
+    # Define the options with captions and values, using underscores for italics
+    close_races_options = {
+        "Off": {"value": None, "caption": "_Margins do not affect race result weighting_"},
+        "Low": {"value": 12.0, "caption": '_Races determined by 1" are weighted twice as much as those with a 12" margin_'},
+        "Medium": {"value": 8.0, "caption": '_Races determined by 1" are weighted twice as much as those with a 8" margin_'},
+        "High": {"value": 5.0, "caption": '_Races determined by 1" are weighted twice as much as those with a 5" margin_'},
+    }
+
+    stern_bias_options = {
+        "Off": {"value": None, "caption": "_All rowers have a similar impact on the result_"},
+        "Low": {"value": 25, "caption": "_Rowers positioned nearer the stern have a slightly higher impact_"},
+        "Medium": {"value": 50, "caption": "_Rowers positioned nearer the stern have a moderately higher impact_"},
+        "High": {"value": 100, "caption": "_Rowers positioned nearer the stern have a significantly higher impact_"},
+    }
+
+    # Close Races widget
+    st.sidebar.markdown("### Close Races")
+    weight_close = st.sidebar.radio("Close Races", list(close_races_options.keys()), horizontal=False, index=2, label_visibility='collapsed')
+    weight_close_text = close_races_options[weight_close]["caption"]
+    st.sidebar.caption(weight_close_text)
+
+    # Stern Bias widget
+    st.sidebar.markdown("### Stern Bias")
+    weight_stern = st.sidebar.radio("Stern Bias", list(stern_bias_options.keys()), horizontal=False, index=1, label_visibility='collapsed')
+    weight_stern_text = stern_bias_options[weight_stern]["caption"]
+    st.sidebar.caption(weight_stern_text)
+
+
+
+    # Recency Weighting
+    st.sidebar.markdown("### Recency Weighting")
+    recency_halflife = st.sidebar.radio("Recency Weighting", list(recency_options.keys()), horizontal=False, index=2, label_visibility='collapsed')
     halflife = recency_options[recency_halflife]
     halflife_text = f"{halflife:.0f}" if halflife is not None else "Off"
-    st.sidebar.write(f"**Halflife = {halflife_text}{' days' if halflife_text != 'Off' else ''}**")
+    if recency_halflife != "Off":
+        st.sidebar.caption(f"_By {halflife_text}{" days, a result's weight is reduced by half" if halflife_text != 'Off' else ''}_")
+    else:
+        st.sidebar.caption(f"_Older races are weighted the same as more recent races_")
+
 
 
 ## Parameters
@@ -146,7 +181,9 @@ if not st.session_state.current_data.empty:
         sides_count = get_rower_sides_count(filtered_data)
 
         # Run regression
-        results = run_regression(filtered_data, models[select_model], max_correlation, halflife)
+        weight_close_factor = close_races_options[weight_close]["value"]
+        weight_stern_factor = stern_bias_options[weight_close]["value"]
+        results = run_regression(filtered_data, models[select_model], max_correlation, halflife, weight_close_factor, weight_stern_factor, include_coxswains)
         athletes_df = results['athletes']
         dropped_athletes_df = results['dropped_athletes']
         shell_classes_df = results['shell_classes']        
@@ -198,6 +235,11 @@ with performance_tab:
         coxswains = [rower for rower, sides in sides_count.items() if sides['Coxswain'] > 0]
         scullers = [rower for rower, sides in sides_count.items() if sides['Scull'] > 0]
 
+        starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)].copy()
+        port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)].copy()
+        coxswain_df = athletes_df.loc[athletes_df.index.isin(coxswains)].copy()
+        sculler_df = athletes_df.loc[athletes_df.index.isin(scullers)].copy()
+
         st.subheader("Speed Coefficients")
         coefficient_boat_classes = ["8+", "4+/-", "2-"]
         st.write("_Number of seconds, per 500m, faster than average_")
@@ -205,15 +247,11 @@ with performance_tab:
         with col1:
             st.write("Starboard")
             starboard_confidence = st.slider("Max Uncertainty", key="starboard_uncertainty", min_value = 5, max_value = 100, value = 10, step = 1)
-            starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)].copy()
             generate_side_chart(st, starboard_df)
-
-            
 
         with col2:
             st.write("Port")
             starboard_confidence = st.slider("Max Uncertainty", key="port_uncertainty", min_value = 5, max_value = 100, value = 10, step = 1)
-            port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)].copy()
             generate_side_chart(st, port_df)
             
         if len(dropped_athletes_df) > 0:
@@ -221,24 +259,39 @@ with performance_tab:
             starboard_dropped_df = dropped_athletes_df.loc[dropped_athletes_df.index.isin(starboard_rowers)].sort_index().copy()
             port_dropped_df = dropped_athletes_df.loc[dropped_athletes_df.index.isin(port_rowers)].sort_index().copy()
 
-            starboard_best = min(starboard_df['Coefficient'])
-            port_best = min(port_df['Coefficient'])
+            # Calculate the best coefficients for each category
+            starboard_best = min(starboard_df['Coefficient']) if not starboard_df.empty else None
+            port_best = min(port_df['Coefficient']) if not port_df.empty else None
+            coxswain_best = min(coxswain_df['Coefficient']) if not coxswain_df.empty else None
+            sculler_best = min(sculler_df['Coefficient']) if not sculler_df.empty else None
 
-            def calculate_average_behind(df, starboard_best, port_best):
-                # Count occurrences of 'ᵖ' and 'ˢ' in the specified group column. 'c': 'ᶜ', 'x': 'ˣ')
+            def calculate_average_behind(df, starboard_best, port_best, coxswain_best, sculler_best):
+                starboard_best = starboard_best if starboard_best is not None else 0
+                port_best = port_best if port_best is not None else 0
+                coxswain_best = coxswain_best if coxswain_best is not None else 0
+                sculler_best = sculler_best if sculler_best is not None else 0
+
+                # Count occurrences of 'ᵖ', 'ˢ', 'ˣ', and 'ᶜ' in the specified group column
                 df['Port Count'] = df['Group Members'].str.count("ᵖ")
                 df['Starboard Count'] = df['Group Members'].str.count("ˢ")
+                df['Sculler Count'] = df['Group Members'].str.count("ˣ")
+                df['Coxswain Count'] = df['Group Members'].str.count("ᶜ")
                 
                 # Calculate the 'Average Behind' value
                 df['Average Behind'] = round(
-                    (df['Group Coefficient Sum'] - (df['Starboard Count'] * starboard_best) - (df['Port Count'] * port_best)) /
-                    (df['Starboard Count'] + df['Port Count']), 1
-                ).apply(lambda x: f"+{round(x, 1)}" if x > 0 else "-")
+                    (df['Group Coefficient Sum'] - 
+                    (df['Starboard Count'] * starboard_best) - 
+                    (df['Port Count'] * port_best) - 
+                    (df['Sculler Count'] * sculler_best) - 
+                    (df['Coxswain Count'] * coxswain_best)) / 
+                    (df['Starboard Count'] + df['Port Count'] + df['Sculler Count'] + df['Coxswain Count']), 1
+                ).apply(lambda x: f"+{round(x, 1)}" if x > 0 else f"{round(x, 1)}")
                 
                 return df
+
             
-            starboard_dropped_df = calculate_average_behind(starboard_dropped_df, starboard_best, port_best)
-            port_dropped_df = calculate_average_behind(port_dropped_df, starboard_best, port_best)
+            starboard_dropped_df = calculate_average_behind(starboard_dropped_df, starboard_best, port_best, coxswain_best, sculler_best)
+            port_dropped_df = calculate_average_behind(port_dropped_df, starboard_best, port_best, coxswain_best, sculler_best)
 
             st.subheader("Dropped Rowers")
             st.write("_Rowers with high uncertainty due to high colinearity_")
@@ -292,8 +345,11 @@ with performance_tab:
         # generate_side_chart(col5, shell_classes_df, "Boat Classes")
 
         col5.subheader("Coxswains")
-        coxswains_df = athletes_df.loc[athletes_df.index.isin(coxswains)].copy()
-        # generate_side_chart(col5, coxswains_df, "Coxswains")
+        generate_side_chart(col5, coxswain_df)
+        coxswain_matrix = compute_probability_matrix(coxswain_df).sort_index()
+        coxswain_matrix = coxswain_matrix[sorted(coxswain_matrix.columns)]
+        col5.dataframe(coxswain_matrix)
+
     else:
         st.write("No data available.")
 
@@ -366,6 +422,8 @@ with time_tab:
 
 with debug_tab:
     if results is not None:
+        results['raw']
+
         st.subheader("Piece Weights")
         st.dataframe(results['weights'])
 
