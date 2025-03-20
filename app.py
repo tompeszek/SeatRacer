@@ -1,3 +1,12 @@
+import debugpy
+
+if not debugpy.is_client_connected():  # Check if a debugger is already attached
+    debugpy.listen(("localhost", 5678))
+    print("Waiting for debugger to attach...")
+    debugpy.wait_for_client()  # Pause execution until the debugger is attached
+
+
+
 from io import StringIO
 import streamlit as st
 import pandas as pd
@@ -107,10 +116,10 @@ if models[select_model] in (['glm', 'wls']):
     }
 
     stern_bias_options = {
-        "Off": {"value": None, "caption": "_All rowers have a similar impact on the result_"},
-        "Low": {"value": 25, "caption": "_Rowers positioned nearer the stern have a slightly higher impact_"},
-        "Medium": {"value": 50, "caption": "_Rowers positioned nearer the stern have a moderately higher impact_"},
-        "High": {"value": 100, "caption": "_Rowers positioned nearer the stern have a significantly higher impact_"},
+        "Off": {"value": 1, "caption": "_Rowers in all positions get the same credit or blame for every result_"},
+        "Low": {"value": 0.9999999, "caption": "_Stroke seat gets 10% more credit or blame than bow seat_"}, # 1.1 is wildly bad intervals
+        "Medium": {"value": 2.0, "caption": "_Stroke seat gets 50% more credit or blame than bow seat_"},
+        "High": {"value": 3.0000001, "caption": "_Stroke seat gets 100% more credit or blame than bow seat_"}, # meh intervals at 2
     }
 
     # Close Races widget
@@ -124,8 +133,6 @@ if models[select_model] in (['glm', 'wls']):
     weight_stern = st.sidebar.radio("Stern Bias", list(stern_bias_options.keys()), horizontal=False, index=1, label_visibility='collapsed')
     weight_stern_text = stern_bias_options[weight_stern]["caption"]
     st.sidebar.caption(weight_stern_text)
-
-
 
     # Recency Weighting
     st.sidebar.markdown("### Recency Weighting")
@@ -163,7 +170,9 @@ lookback_weighting = st.sidebar.segmented_control('Lookback Weighting', ['Unifor
 # Copy data and add fields (athlete counts, shell class)
 if not st.session_state.current_data.empty:
     df = st.session_state.current_data.copy()
+    
     add_athlete_counts(df)
+
     df['shell_class'] = df.apply(determine_shell_class, axis=1)
 
     # Apply shell class filter
@@ -182,8 +191,16 @@ if not st.session_state.current_data.empty:
 
         # Run regression
         weight_close_factor = close_races_options[weight_close]["value"]
-        weight_stern_factor = stern_bias_options[weight_close]["value"]
-        results = run_regression(filtered_data, models[select_model], max_correlation, halflife, weight_close_factor, weight_stern_factor, include_coxswains)
+        weight_stern_factor = stern_bias_options[weight_stern]["value"]
+        results = run_regression(
+            filtered_data,
+            models[select_model],
+            max_correlation=max_correlation,
+            halflife=halflife,
+            weight_close=weight_close_factor,
+            weight_stern=weight_stern_factor,
+            include_coxswains=include_coxswains
+        )
         athletes_df = results['athletes']
         dropped_athletes_df = results['dropped_athletes']
         shell_classes_df = results['shell_classes']        

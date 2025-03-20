@@ -265,20 +265,97 @@ def run_regression(df, selected_model, max_correlation=None, halflife=None, weig
     shell_classes = df['shell_class'].unique()   
 
     # Proportional encode (was one-hot) the rowers' names by splitting and applying dummy encoding    
-    def apply_weight(row):
+    def apply_weight_oldest(row, stroke_multiplier):
         if athlete in row['Personnel']:
             weight = (1.0 / row['athlete_count'])
             # print(f"Assigned weight for {athlete}: {weight}")  # Debugging line
             return weight
         else:
             return 0
+        
+    def apply_weight_old(row, stroke_multiplier):
+        personnel = row['Personnel'].split('/')
+        athlete_count = row['athlete_count']
+        base_weight = 1.0 / athlete_count
+
+        # Identify coxswain, stroke, and bow
+        coxswain = next((p for p in personnel if 'ᶜ' in p), None)
+        non_coxswains = [p for p in personnel if 'ᶜ' not in p]
+        
+        if not non_coxswains:
+            return 0  # No valid rowers
+
+        stroke = non_coxswains[0]
+        bow = non_coxswains[-1]
+
+        # Assign weights
+        weights = {p: 0 for p in personnel}
+        if coxswain:
+            weights[coxswain] = base_weight
+        weights[bow] = base_weight
+        weights[stroke] = stroke_multiplier * base_weight
+
+        # Scale other rowers linearly
+        if len(non_coxswains) > 2:
+            mid_rowers = non_coxswains[1:-1]
+            num_mid_rowers = len(mid_rowers)
+            for i, rower in enumerate(mid_rowers):
+                scale = ((num_mid_rowers - i) / (num_mid_rowers + 1)) * (stroke_multiplier - 1) + 1
+                weights[rower] = scale * base_weight
+
+        return weights.get(athlete, 0)
     
+
+    def compute_weights(row, stroke_multiplier):
+        personnel = row['Personnel'].split('/')
+        athlete_count = row['athlete_count']
+        if athlete_count == 0:
+            return {p: 0 for p in personnel}  # No rowers
+
+        # Identify coxswain, stroke, and bow
+        coxswain = next((p for p in personnel if 'ᶜ' in p), None)
+        non_coxswains = [p for p in personnel if 'ᶜ' not in p]
+
+        if not non_coxswains:
+            return {p: 0 for p in personnel}  # No valid rowers
+
+        stroke = non_coxswains[0]
+        bow = non_coxswains[-1]
+
+        # Compute base weight that ensures total rower weight sums to 1
+        weight_scaling_factor = sum(
+            ((len(non_coxswains) - i) / (len(non_coxswains) + 1)) * (stroke_multiplier - 1) + 1
+            for i in range(len(non_coxswains))
+        )
+        base_weight = 1.0 / weight_scaling_factor
+
+        # Assign initial weights
+        weights = {p: 0 for p in personnel}
+        if coxswain:
+            weights[coxswain] = 1  # Coxswain always gets weight 1
+
+        weights[bow] = base_weight
+        weights[stroke] = stroke_multiplier * base_weight
+
+        # Scale mid-rowers
+        if len(non_coxswains) > 2:
+            mid_rowers = non_coxswains[1:-1]
+            num_mid_rowers = len(mid_rowers)
+            for i, rower in enumerate(mid_rowers):
+                scale = ((num_mid_rowers - i) / (num_mid_rowers + 1)) * (stroke_multiplier - 1) + 1
+                weights[rower] = scale * base_weight
+
+        return weights  # Dictionary mapping each rower to their weight
+
+
+    # Compute weights once per row
+    df["weights"] = df.apply(lambda row: compute_weights(row, weight_stern), axis=1)
+
+    # Extract weights for each athlete
     for athlete in athletes:
-        # df[athlete] = df['Personnel'].apply(lambda x: 100 if athlete in x else 0)
-        # df[athlete] = df.apply(lambda row: 1 / row['athlete_count'] if athlete in row['Personnel'] else 0, axis=1)
-        df[athlete] = df.apply(apply_weight, axis=1)
+        df[athlete] = df["weights"].apply(lambda w: w.get(athlete, 0))
 
-
+        x = 1
 
 
     # One-hot encode the 'shell_class' column for each unique shell class
@@ -293,11 +370,9 @@ def run_regression(df, selected_model, max_correlation=None, halflife=None, weig
 
     for col in X.columns:
         if X[col].dtype != 'float64':  # Ensure we don't touch float64 columns
-            X[col] = X[col].astype(int)
+            X[col] = X[col].astype("float64")
 
-    # Add a constant (intercept) to the model
-    # X = sm.add_constant(X)
-
+    
     # Fit the OLS model
     match selected_model:
         # case 'ridge':
