@@ -1,0 +1,4 @@
+.venv/
+seatracer.egg-info/
+*.pyc
+*.vscode
