@@ -1,24 +1,27 @@
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
+
+from seatracer.utils.helpers import add_side_aware_speed
 
 class TemporalVisualizer:
     """
     Class for visualizing temporal analysis results in Streamlit.
     """
-    def __init__(self, temporal_analysis):
+    def __init__(self, analysis):
         """
-        Initialize the visualizer with temporal analysis results.
+        Initialize the visualizer with analysis results.
         
         Parameters:
         -----------
-        temporal_analysis : TemporalAnalysis
-            Instance of TemporalAnalysis with results
+        analysis : Analysis
+            Instance of Analysis with temporal results
         """
-        self.analysis = temporal_analysis
+        self.analysis = analysis
     
     def plot_position_trends(self, position, top_n=8, figsize=(12, 8), default_visible=None):
         """
-        Create a Plotly figure for position-based performance trends.
+        Create a Plotly figure for position-based performance trends with side-aware speed.
         
         Parameters:
         -----------
@@ -42,9 +45,15 @@ class TemporalVisualizer:
             
             if not position_athletes:
                 return None
-                
+            
+            # Get temporal data  
+            temporal_data = self.analysis.get_temporal_data()
+            time_series_df = temporal_data['time_series_df']
+            stats_df = temporal_data['stats_df']
+            by_piece = temporal_data.get('by_piece', False)
+            
             # Get stats for these athletes
-            position_stats = self.analysis.stats_df[self.analysis.stats_df['Rower'].isin(position_athletes)]
+            position_stats = stats_df[stats_df['Rower'].isin(position_athletes)]
             position_stats = position_stats.sort_values('Mean')
             
             # Determine which athletes to show by default
@@ -54,9 +63,56 @@ class TemporalVisualizer:
             # Create figure
             fig = go.Figure()
             
+            # Initialize new_time_series with an empty dataframe
+            new_time_series = pd.DataFrame()
+            
+            # Process each time point and compute speed relative to fastest athlete for each
+            time_points = time_series_df['point'].unique()
+            
+            for time_point in time_points:
+                # Get data for this time point
+                point_data = time_series_df[time_series_df['point'] == time_point].copy()
+                
+                # Filter for just athletes of this position
+                point_athletes = {athlete: point_data[athlete].iloc[0] for athlete in position_athletes 
+                                if athlete in point_data.columns and not pd.isna(point_data[athlete].iloc[0])}
+                
+                if not point_athletes:  # Skip this point if no athletes from this position
+                    continue
+                    
+                # Create a dataframe for side-aware speed calculation
+                athlete_df = pd.DataFrame({
+                    'Coefficient': point_athletes
+                })
+                athlete_df.index.name = 'Rower'
+                
+                # Extract suffix (ᵖ, ˢ, ᶜ, ˣ) from athlete names
+                athlete_df["Suffix"] = athlete_df.index.to_series().str.extract(r'([ᵖˢᶜˣ])$')[0]
+
+                # Determine the fastest athlete per suffix group
+                fastest_by_suffix = athlete_df.groupby("Suffix")["Coefficient"].transform("min")
+
+                # Compute speed relative to the fastest in each suffix group
+                athlete_df["Speed"] = athlete_df["Coefficient"] - fastest_by_suffix
+                
+                # Store back in the time_series
+                for athlete in athlete_df.index:
+                    if athlete in point_data.columns:
+                        point_data.loc[point_data.index[0], f"{athlete}_Speed"] = athlete_df.loc[athlete, 'Speed']
+                
+                # Append to new_time_series
+                new_time_series = pd.concat([new_time_series, point_data])
+            
             # Add trace for each athlete
             for athlete in position_stats['Rower']:
-                athlete_data = self.analysis.get_athlete_trend(athlete)
+                # Create speed column name for this athlete
+                speed_col = f"{athlete}_Speed"
+                
+                # Check if we have data for this athlete
+                if speed_col not in new_time_series.columns:
+                    continue
+                    
+                athlete_data = new_time_series[['point', 'date', athlete, speed_col]].dropna(subset=[speed_col])
                 
                 if athlete_data.empty:
                     continue
@@ -64,22 +120,52 @@ class TemporalVisualizer:
                 # Set visibility based on whether athlete is in default_visible list
                 visible = True if athlete in default_visible else 'legendonly'
                 
+                # Get min/max from stats
+                min_val = position_stats.loc[position_stats['Rower'] == athlete, 'Min'].iloc[0]
+                max_val = position_stats.loc[position_stats['Rower'] == athlete, 'Max'].iloc[0]
+                
+                # Determine x-axis values based on by_piece
+                if by_piece:
+                    # Use piece numbers/names for x-axis
+                    x_values = athlete_data['point']
+                else:
+                    # Use dates for x-axis
+                    x_values = athlete_data['date']
+                
+                # Hover template with correct information
+                hovertemplate = f'Athlete: {athlete}<br>Speed: +%{{y:.1f}}<br>Coefficient: %{{customdata:.1f}}<br>Min/Max: {min_val:.1f}/{max_val:.1f}<extra></extra>'
+                
+                # Use the raw negative speed so higher is better
+                y_values = -athlete_data[speed_col]
+                
+                # Add coefficient as custom data for hover
+                customdata = athlete_data[athlete]
+                
                 fig.add_trace(go.Scatter(
-                    x=athlete_data['date'],
-                    y=athlete_data[athlete],
+                    x=x_values,
+                    y=y_values,
                     mode='lines+markers',
                     name=athlete,
                     visible=visible,
                     line=dict(width=2),
-                    marker=dict(size=6)
+                    marker=dict(size=6),
+                    hovertemplate=hovertemplate,
+                    customdata=customdata
                 ))
                 
-            # Set layout
-            fig.update_yaxes(autorange="reversed")
+            # Set layout        
+            # Set title and axis labels based on by_piece
+            if by_piece:
+                x_title = "Race Piece"
+                title = f"Performance Trends by Race for {position.capitalize()} Position"
+            else:
+                x_title = "Date"
+                title = f"Performance Trends by Date for {position.capitalize()} Position"
+                
             fig.update_layout(
-                title=f"Performance Trends for {position.capitalize()} Position",
-                xaxis_title="Date",
-                yaxis_title="Coefficient (lower is better)",
+                title=title,
+                xaxis_title=x_title,
+                yaxis_title="Speed (higher is better)",
                 width=figsize[0]*100,
                 height=figsize[1]*100,
                 hovermode="x unified",
@@ -93,13 +179,13 @@ class TemporalVisualizer:
             
             return fig
             
-        except ValueError as e:
+        except Exception as e:
             print(f"Error creating position trend plot: {e}")
             return None
     
     def plot_athlete_comparison(self, athletes, figsize=(12, 8)):
         """
-        Create a Plotly figure comparing multiple athletes.
+        Create a Plotly figure comparing multiple athletes using side-aware speed.
         
         Parameters:
         -----------
@@ -115,27 +201,133 @@ class TemporalVisualizer:
         """
         fig = go.Figure()
         
+        # Get temporal data
+        temporal_data = self.analysis.get_temporal_data()
+        time_series_df = temporal_data['time_series_df'].copy()  # Make a copy to avoid modifying the original
+        stats_df = temporal_data['stats_df']
+        by_piece = temporal_data.get('by_piece', False)
+        
+        # Ensure proper sorting of the time series data
+        if by_piece:
+            # Convert date to datetime if it's not already
+            if not pd.api.types.is_datetime64_dtype(time_series_df['date']):
+                time_series_df['date'] = pd.to_datetime(time_series_df['date'])
+            
+            # Sort by date first, then by point if possible
+            time_series_df = time_series_df.sort_values('date')
+        else:
+            # For date-based views, simply sort by date
+            time_series_df = time_series_df.sort_values('date')
+        
+        # Initialize new_time_series with an empty dataframe
+        new_time_series = pd.DataFrame()
+        
+        # Process each time point and compute speed relative to fastest athlete for each
+        for _, point_data in time_series_df.groupby('point', sort=False):
+            # Filter for just the selected athletes
+            point_athletes = {athlete: point_data[athlete].iloc[0] for athlete in athletes 
+                            if athlete in point_data.columns and not pd.isna(point_data[athlete].iloc[0])}
+            
+            if not point_athletes:  # Skip this point if no selected athletes
+                continue
+                
+            # Create a dataframe for side-aware speed calculation
+            athlete_df = pd.DataFrame({
+                'Coefficient': point_athletes
+            })
+            athlete_df.index.name = 'Rower'
+            
+            # Extract suffix (ᵖ, ˢ, ᶜ, ˣ) from athlete names
+            athlete_df["Suffix"] = athlete_df.index.to_series().str.extract(r'([ᵖˢᶜˣ])$')[0]
+
+            # Determine the fastest athlete per suffix group
+            fastest_by_suffix = athlete_df.groupby("Suffix")["Coefficient"].transform("min")
+
+            # Compute speed relative to the fastest in each suffix group
+            athlete_df["Speed"] = athlete_df["Coefficient"] - fastest_by_suffix
+            
+            # Store back in the time_series
+            for athlete in athlete_df.index:
+                if athlete in point_data.columns:
+                    point_data.loc[point_data.index[0], f"{athlete}_Speed"] = athlete_df.loc[athlete, 'Speed']
+            
+            # Append to new_time_series
+            new_time_series = pd.concat([new_time_series, point_data])
+        
+        # Ensure new_time_series maintains the same sorting as time_series_df
+        new_time_series = new_time_series.merge(
+            time_series_df[['point', 'date']], 
+            on=['point', 'date'],
+            how='left'
+        )
+        
+        # Add trace for each athlete
         for athlete in athletes:
             try:
-                athlete_data = self.analysis.get_athlete_trend(athlete)
+                # Create speed column name for this athlete
+                speed_col = f"{athlete}_Speed"
                 
-                if not athlete_data.empty:
-                    fig.add_trace(go.Scatter(
-                        x=athlete_data['date'],
-                        y=athlete_data[athlete],
-                        mode='lines+markers',
-                        name=athlete,
-                        line=dict(width=2),
-                        marker=dict(size=6)
-                    ))
-            except ValueError:
+                # Check if we have data for this athlete
+                if speed_col not in new_time_series.columns:
+                    continue
+                    
+                athlete_data = new_time_series[['point', 'date', athlete, speed_col]].dropna(subset=[speed_col])
+                
+                if athlete_data.empty:
+                    continue
+                    
+                # Get min/max from stats for this athlete if available
+                if athlete in stats_df['Rower'].values:
+                    min_val = stats_df.loc[stats_df['Rower'] == athlete, 'Min'].iloc[0]
+                    max_val = stats_df.loc[stats_df['Rower'] == athlete, 'Max'].iloc[0]
+                    min_max_text = f"<br>Min/Max: {min_val:.1f}/{max_val:.1f}"
+                else:
+                    min_max_text = ""
+                    
+                # Determine x-axis values based on by_piece
+                if by_piece:
+                    # Use piece numbers/names for x-axis
+                    x_values = athlete_data['point']
+                else:
+                    # Use dates for x-axis
+                    x_values = athlete_data['date']
+                    
+                # Hover template with correct information
+                hovertemplate = f'Athlete: {athlete}<br>Speed: +%{{y:.1f}}<br>Coefficient: %{{customdata:.1f}}{min_max_text}<extra></extra>'
+                
+                # Use the raw negative speed so higher is better
+                y_values = -athlete_data[speed_col]
+                
+                # Add coefficient as custom data for hover
+                customdata = athlete_data[athlete]
+                
+                fig.add_trace(go.Scatter(
+                    x=x_values,
+                    y=y_values,
+                    mode='lines+markers',
+                    name=athlete,
+                    line=dict(width=2),
+                    marker=dict(size=6),
+                    hovertemplate=hovertemplate,
+                    customdata=customdata
+                ))
+            except Exception as e:
+                print(f"Error plotting athlete {athlete}: {e}")
                 continue
                 
         # Set layout
+        # Set title and axis labels based on by_piece
+        if by_piece:
+            x_title = "Race Piece"
+            title = "Athlete Performance Comparison by Race"
+        else:
+            x_title = "Date"
+            title = "Athlete Performance Comparison by Date"
+            
         fig.update_layout(
-            title="Athlete Performance Comparison",
-            xaxis_title="Date",
-            yaxis_title="Coefficient (lower is better)",
+            title=title,
+            xaxis_title=x_title,
+            yaxis_title="Speed (higher is better)",
             width=figsize[0]*100,
             height=figsize[1]*100,
             hovermode="x unified",
@@ -146,6 +338,12 @@ class TemporalVisualizer:
                 x=0.01
             ),
         )
+        
+        # Ensure the x-axis is in the correct order
+        if by_piece:
+            # Create a category order based on the sorted dates
+            unique_points = new_time_series.sort_values('date')['point'].unique()
+            fig.update_xaxes(categoryorder='array', categoryarray=unique_points)
         
         return fig
     
@@ -168,22 +366,15 @@ class TemporalVisualizer:
                 st.warning(f"No data available for {position} position.")
                 return
                 
+            # Get temporal data
+            temporal_data = self.analysis.get_temporal_data()
+            stats_df = temporal_data['stats_df']
+            
             # Get stats for these athletes
-            position_stats = self.analysis.stats_df[self.analysis.stats_df['Rower'].isin(position_athletes)]
+            position_stats = stats_df[stats_df['Rower'].isin(position_athletes)]
             position_stats = position_stats.sort_values('Mean')
             
-            # Default to showing top N athletes
-            default_athletes = position_stats.head(top_n)['Rower'].tolist()
-            
-            # Create athlete selector
-            # st.subheader(f"Select {position.capitalize()} Athletes to Display")
-            # selected_athletes = st.multiselect(
-            #     "Athletes:",
-            #     options=position_athletes,
-            #     default=default_athletes
-            # )
-            
-            # Create chart with selected athletes
+            # Create chart with all position athletes visible
             if position_athletes:
                 fig = self.plot_position_trends(
                     position=position,
@@ -191,11 +382,6 @@ class TemporalVisualizer:
                 )
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # # Show statistics for selected athletes
-                # with st.expander("Show Statistics"):
-                #     stats_df = self.analysis.stats_df[self.analysis.stats_df['Rower'].isin(selected_athletes)]
-                #     stats_df = stats_df.sort_values('Mean')
-                #     st.dataframe(stats_df)
             else:
                 st.info("Please select at least one athlete to display the chart.")
                 
@@ -206,10 +392,12 @@ class TemporalVisualizer:
         """
         Create a complete Streamlit interface for temporal analysis results.
         """
-        if self.analysis.time_series_df is None or self.analysis.stats_df is None:
-            st.warning("No temporal analysis results available.")
+        # Check if temporal analysis has been run
+        temporal_data = self.analysis.get_temporal_data()
+        if temporal_data['time_series_df'] is None or temporal_data['stats_df'] is None:
+            st.warning("No temporal analysis results available. Please run analysis.run_history() first.")
             return
-            
+                    
         # Get available positions
         position_suffix_map = {
             'Starboard': 'ˢ',
@@ -218,9 +406,11 @@ class TemporalVisualizer:
             'Coxswain': 'ᶜ'
         }
         
+        stats_df = temporal_data['stats_df']
+        
         available_positions = []
         for position, suffix in position_suffix_map.items():
-            if any(rower.endswith(suffix) for rower in self.analysis.stats_df['Rower']):
+            if any(rower.endswith(suffix) for rower in stats_df['Rower']):
                 available_positions.append(position)
                 
         if not available_positions:
@@ -236,21 +426,3 @@ class TemporalVisualizer:
         
         # Create the chart for selected position
         self.create_streamlit_position_chart(selected_position)
-        
-        # # Create custom comparison section
-        # with st.expander("Compare Specific Athletes"):
-        #     st.subheader("Custom Athlete Comparison")
-            
-        #     # Get all athletes
-        #     all_athletes = self.analysis.stats_df['Rower'].tolist()
-            
-        #     # Create athlete selector
-        #     custom_athletes = st.multiselect(
-        #         "Select athletes to compare:",
-        #         options=all_athletes,
-        #         default=[]
-        #     )
-            
-        #     if custom_athletes:
-        #         fig = self.plot_athlete_comparison(custom_athletes)
-        #         st.plotly_chart(fig, use_container_width=True)

@@ -4,9 +4,9 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from typing import Dict, List, Optional, Any
-from seatracer.utils.helpers import time_to_seconds, seconds_to_time, calculate_closest_margin
+from seatracer.utils.helpers import add_athlete_counts, append_rigging_to_names, determine_shell_class, get_rower_sides_count, time_to_seconds, seconds_to_time, calculate_closest_margin
 from seatracer.utils.grouping import group_highly_correlated_parameters
-
+import streamlit as st
 
 @dataclass
 class Analysis(ABC):
@@ -20,26 +20,59 @@ class Analysis(ABC):
     seat_breakdown: bool = True  
     lookback: int = 10000
     erg_scores: object = None
+    shell_class: object = None
     
     def __post_init__(self):
         self.df = self.df.copy()
         self.time_series_df = None
         self.stats_df = None
         self.final_results = None
+        
+        # Initialize temporal analysis data
+        self.temporal_data = {
+            'time_series_df': None,
+            'stats_df': None,
+            'all_athletes': set(),
+            'results_by_date': {}
+        }
 
-    def run_analysis(self, get_history=False):
-        """Main analysis method that handles the overall analysis pipeline"""
+        add_athlete_counts(self.df)
+
+        self.df['shell_class'] = self.df.apply(determine_shell_class, axis=1)
+
+        # Apply shell class filter
+        self.df = self.df[self.df['shell_class'].isin(self.shell_class)]
+        # Add sides to names  (also adds coxswain to personnel if needed)
+        self.df = append_rigging_to_names(self.df)
+
+        # Only go forward if there is data:
+        if not self.df.empty:
+            
+            # Add piece names
+            self.df['Piece'] = self.df['Race Session (date)'].astype(str) + " #" + self.df['Piece'].astype(str)
+
+            # Sides count
+            st.session_state.sides_count = get_rower_sides_count(self.df)
+
+    def run_analysis(self, get_history=False, by_piece=False):
+        """
+        Main analysis method that handles the overall analysis pipeline.
+        
+        Parameters:
+        -----------
+        get_history : bool
+            Whether to calculate results over time
+        by_piece : bool
+            If True, analyze progression by individual pieces rather than by date
+        """
         df = self.df.copy()
 
         # Ensure date column is datetime
         df['Race Session (date)'] = pd.to_datetime(df['Race Session (date)'])
         
-        # Get unique dates in chronological order
-        unique_dates = sorted(df['Race Session (date)'].unique())
-        
-        # Store results for all dates
-        coefficients_by_date = {}
-        results_by_date = {}
+        # Store results 
+        coefficients_by_point = {}
+        results_by_point = {}
         all_athletes = set()
 
         # Convert Result times to seconds and then calculate time per 500m
@@ -49,8 +82,7 @@ class Analysis(ABC):
         # Apply weights
         df = calculate_closest_margin(df)
         df = self._apply_weights(df, self.weight_close, self.halflife)
-        weights = df['total_weight']
-
+        
         # Extract athletes and shell classes
         athletes = df['Personnel'].str.split('/', expand=True).stack().unique()
         athletes = [athlete for athlete in athletes if self.include_coxswains or not athlete.endswith('ᶜ')]
@@ -66,63 +98,195 @@ class Analysis(ABC):
         # Add shell class columns
         for shell_class in shell_classes:
             df[shell_class] = df['shell_class'].apply(lambda x: 1 if x == shell_class else 0)
-    
+
         if get_history:
-            # Process each date
-            for idx, current_date in enumerate(unique_dates):
-                # Define the lookback window
-                lookback_start = current_date - pd.Timedelta(days=self.lookback)
+            if by_piece:
+                # Sort data by date and piece to ensure chronological order
+                df = df.sort_values(['Race Session (date)', 'Piece'])
                 
-                # Filter data within the lookback window
-                window_df = df[(df['Race Session (date)'] >= lookback_start) & 
-                                (df['Race Session (date)'] <= current_date)].copy()
+                # Get all unique pieces in order
+                all_pieces = df['Piece'].unique()
                 
-                # Adjust recency weights to be relative to current date if using recency
-                if self.halflife is not None:
-                    window_df = self._recalculate_recency_weights(window_df, current_date, self.halflife)
+                # Process each piece incrementally
+                cumulative_df = pd.DataFrame()
                 
-                # Run regression on this window
-                window_results = self._run_regression(window_df, weights, athletes, shell_classes)
+                for piece_idx, piece in enumerate(all_pieces):
+                    # Add this piece to the cumulative data
+                    piece_df = df[df['Piece'] == piece]
+                    
+                    if piece_idx == 0:
+                        cumulative_df = piece_df.copy()
+                    else:
+                        cumulative_df = pd.concat([cumulative_df, piece_df])
+                    
+                    # # Skip if not enough data
+                    # if len(cumulative_df) < 5:
+                    #     continue
+                    
+                    # Adjust recency weights if needed
+                    if self.halflife is not None:
+                        current_date = piece_df['Race Session (date)'].iloc[0]
+                        cumulative_df = self._recalculate_recency_weights(cumulative_df, current_date, self.halflife)
+                    
+                    # Get weights specific to this cumulative dataset
+                    window_weights = cumulative_df['total_weight']
+                    
+                    # Get athletes present in this data
+                    window_personnel = cumulative_df['Personnel'].str.split('/', expand=True).stack().unique()
+                    window_athletes = [athlete for athlete in athletes if athlete in window_personnel]
+                    
+                    # Run regression on cumulative data through this piece
+                    piece_results = self._run_regression(cumulative_df, window_weights, window_athletes, shell_classes)
+                    
+                    # Store results with this piece
+                    results_by_point[piece] = piece_results
+                    
+                    # Extract coefficients
+                    athletes_df = piece_results['athletes']
+                    
+                    # Store coefficients for this piece - only for athletes present
+                    piece_coeffs = {'point': piece, 'date': piece_df['Race Session (date)'].iloc[0]}
+                    for idx, row in athletes_df.iterrows():
+                        athlete = idx
+                        all_athletes.add(athlete)
+                        piece_coeffs[athlete] = row['Coefficient']
+                    
+                    coefficients_by_point[piece] = piece_coeffs
+                    
+                    # Update final results to most recent
+                    self.final_results = piece_results
                 
-                # Store results with this date
-                results_by_date[current_date] = window_results
+            else:  # Process by date (original method)
+                # Get unique dates in chronological order
+                unique_dates = sorted(df['Race Session (date)'].unique())
                 
-                # Extract coefficients
-                athletes_df = window_results['athletes']
-                
-                # Store coefficients for this date
-                date_coeffs = {'date': current_date}
-                for idx, row in athletes_df.iterrows():
-                    athlete = idx
-                    all_athletes.add(athlete)
-                    date_coeffs[athlete] = row['Coefficient']
-                
-                coefficients_by_date[current_date] = date_coeffs
-                
-                # Update final results to the most recent date
-                self.final_results = window_results
+                # Process each date
+                for idx, current_date in enumerate(unique_dates):
+                    # Define the lookback window
+                    lookback_start = current_date - pd.Timedelta(days=self.lookback)
+                    
+                    # Filter data within the lookback window
+                    window_df = df[(df['Race Session (date)'] >= lookback_start) & 
+                                    (df['Race Session (date)'] <= current_date)].copy()
+                    
+                    # Skip if not enough data in this window
+                    if len(window_df) < 5:  # Minimum number of rows needed
+                        continue
+                    
+                    # Adjust recency weights to be relative to current date if using recency
+                    if self.halflife is not None:
+                        window_df = self._recalculate_recency_weights(window_df, current_date, self.halflife)
+                    
+                    # Get the weights specific to this window
+                    window_weights = window_df['total_weight']
+                    
+                    # Get the athletes present in this window
+                    window_personnel = window_df['Personnel'].str.split('/', expand=True).stack().unique()
+                    window_athletes = [athlete for athlete in athletes if athlete in window_personnel]
+                    
+                    # Run regression on this window
+                    window_results = self._run_regression(window_df, window_weights, window_athletes, shell_classes)
+                    
+                    # Store results with this date
+                    results_by_point[current_date] = window_results
+                    
+                    # Extract coefficients
+                    athletes_df = window_results['athletes']
+                    
+                    # Store coefficients for this date - only for athletes present in this window
+                    date_coeffs = {'point': current_date, 'date': current_date}
+                    for idx, row in athletes_df.iterrows():
+                        athlete = idx
+                        all_athletes.add(athlete)
+                        date_coeffs[athlete] = row['Coefficient']
+                    
+                    coefficients_by_point[current_date] = date_coeffs
+                    
+                    # Update final results to the most recent date
+                    self.final_results = window_results
             
-            # Create time series dataframe
-            if coefficients_by_date:
-                self.time_series_df = pd.DataFrame(list(coefficients_by_date.values()))
-                self.time_series_df = self.time_series_df.sort_values('date')
+            # Create time series dataframe with NaN for missing athletes at each point
+            if coefficients_by_point:
+                self.time_series_df = pd.DataFrame(list(coefficients_by_point.values()))
+                
+                # Sort correctly based on whether by_piece is True
+                if by_piece:
+                    # First ensure we have a proper date column in datetime format
+                    self.time_series_df['date'] = pd.to_datetime(self.time_series_df['date'])
+                    
+                    # Extract date part and possibly piece number for sorting
+                    self.time_series_df['sort_date'] = self.time_series_df['date'].dt.date
+                    
+                    # Try to extract piece number if available
+                    # Assuming piece format might be like "2023-09-14 #2" or similar
+                    try:
+                        self.time_series_df['sort_piece'] = self.time_series_df['point'].astype(str).str.extract(r'#(\d+)').astype(float)
+                    except:
+                        # If extraction fails, just use a default ordering
+                        self.time_series_df['sort_piece'] = range(len(self.time_series_df))
+                    
+                    # Sort by date then by piece number
+                    self.time_series_df = self.time_series_df.sort_values(['sort_date', 'sort_piece'])
+                    
+                    # Remove temporary sorting columns
+                    self.time_series_df = self.time_series_df.drop(columns=['sort_date', 'sort_piece'])
+                else:
+                    # Sort by date for the date-based analysis
+                    self.time_series_df = self.time_series_df.sort_values('date')
                 
                 # Calculate statistics for each rower
                 self.stats_df = self._calculate_athlete_statistics(all_athletes)
+                
+                # Store data for temporal analysis
+                self.temporal_data = {
+                    'time_series_df': self.time_series_df,
+                    'stats_df': self.stats_df,
+                    'all_athletes': all_athletes, 
+                    'results_by_point': results_by_point,
+                    'by_piece': by_piece
+                }
         
         else:
+            # Get the weights for regular analysis
+            weights = df['total_weight']
+            
             # Run regression on the entire dataset
             self.final_results = self._run_regression(df, weights, athletes, shell_classes)
             
-            # Create time series dataframe
-            self.time_series_df = pd.DataFrame(columns=['date'])
-            self.time_series_df['date'] = [pd.to_datetime('now')]
-            
-            # Calculate statistics for each rower
-            self.stats_df = self._calculate_athlete_statistics(all_athletes)
-        
         return self
     
+    def run_history(self, custom_lookback=None, by_piece=False):
+        """
+        Run temporal analysis to track athlete performance over time.
+        This is an explicit method to process historical data which may be time-consuming.
+        
+        Parameters:
+        -----------
+        custom_lookback : int, optional
+            Override the default lookback period for this analysis
+        by_piece : bool, optional
+            If True, analyze progression by individual pieces rather than by date
+            
+        Returns:
+        --------
+        self : Analysis
+            Returns self for method chaining
+        """
+        original_lookback = self.lookback
+        
+        # Override lookback if provided
+        if custom_lookback is not None:
+            self.lookback = custom_lookback
+            
+        try:
+            # Run analysis with history enabled and the by_piece parameter
+            self.run_analysis(get_history=True, by_piece=by_piece)
+        finally:
+            # Restore original lookback value
+            self.lookback = original_lookback
+            
+        return self
+        
     @abstractmethod
     def _run_regression(self, df, weights, athletes, shell_classes):
         """Abstract method to be implemented by specific model subclasses"""
@@ -209,18 +373,18 @@ class Analysis(ABC):
     
     def get_athlete_trend(self, athlete):
         """Get time series for a specific athlete"""
-        if self.time_series_df is None:
-            raise ValueError("No analysis results available")
+        if self.temporal_data['time_series_df'] is None:
+            raise ValueError("No temporal analysis results available. Run run_history() first.")
         
-        if athlete not in self.time_series_df.columns:
+        if athlete not in self.temporal_data['time_series_df'].columns:
             raise ValueError(f"Athlete '{athlete}' not found in results")
         
-        return self.time_series_df[['date', athlete]].dropna()
+        return self.temporal_data['time_series_df'][['date', athlete]].dropna()
     
     def get_position_athletes(self, position):
         """Get list of athletes for a specific position"""
-        if self.stats_df is None:
-            raise ValueError("No analysis results available")
+        if self.temporal_data['stats_df'] is None:
+            raise ValueError("No temporal analysis results available. Run run_history() first.")
         
         position_suffix_map = {
             'Starboard': 'ˢ',
@@ -234,7 +398,18 @@ class Analysis(ABC):
         
         suffix = position_suffix_map[position]
         
-        return [a for a in self.stats_df['Rower'] if a.endswith(suffix)]
+        return [a for a in self.temporal_data['stats_df']['Rower'] if a.endswith(suffix)]
+    
+    def get_temporal_data(self):
+        """
+        Get all temporal analysis data.
+        
+        Returns:
+        --------
+        temporal_data : dict
+            Dictionary containing time_series_df, stats_df, and other temporal analysis data
+        """
+        return self.temporal_data
     
     def _create_comparison_df(self, df, y, results, X):
         """Create dataframe comparing actual vs. predicted values"""
@@ -407,6 +582,7 @@ class Analysis(ABC):
         }
     
     def _add_side_aware_speed(self, df):
+        """Add side-aware speed calculations to the dataframe"""
         df = df.copy()
 
         # Extract suffix (ᵖ, ˢ, ᶜ, ˣ) from athlete names
@@ -426,6 +602,7 @@ class Analysis(ABC):
         return df
     
     def _add_correlations(self, athletes_df, athletes, X, corr_matrix):
+        """Add correlation information to the athletes dataframe"""
         # Add max and min correlation columns to athletes_df
         if not athletes_df.empty:
             # Get athlete columns from X

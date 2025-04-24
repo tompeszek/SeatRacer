@@ -32,7 +32,8 @@ from seatracer.ui.sections import (
     lineup_section,
     new_lineup_section,
     debug_section,
-    time_section
+    time_section,
+    instructions_section,
 )
 
 st.set_page_config(
@@ -65,7 +66,8 @@ default_session_values = {
     'athlete_ergs_df': pd.DataFrame(),
     'current_data': pd.DataFrame(),
     'rerun': False,
-    'reset_athletes': True
+    'reset_athletes': True,
+    'show_timeline_per_piece': True,
 }
 
 for key, default_value in default_session_values.items():
@@ -95,8 +97,6 @@ select_model = st.sidebar.radio(
 # st.sidebar.markdown("_Models with * are not recommended_")
 selected_model = ModelRegistry.get_model_class_by_name(select_model)
 st.sidebar.caption(selected_model.model_description)
-
-run_history = st.sidebar.toggle("Run historical analysis", value=False)
 
 # Weighting
 if selected_model.uses_custom_weighting:
@@ -170,117 +170,102 @@ if include_coxswains :
 else:
     st.sidebar.caption(f"_Ignore coxswains - assume every cox has minimal impact on crew performance_")
 
-## Over Time
-st.sidebar.divider()
-st.sidebar.subheader("Evalation Over Time")
-
-lookback_days = st.sidebar.slider('Lookback Days', 1, 100, 50, on_change=lambda: setattr(st.session_state, 'rerun', True))
-
-### App Code
-# Copy data and add fields (athlete counts, shell class)
+# Conditional analysis execution
 if not st.session_state.current_data.empty:
-    df = st.session_state.current_data.copy()
-    
-    add_athlete_counts(df)
+    if selected_model.uses_custom_weighting:
+        weight_close_factor = close_races_options[weight_close]["value"]
+        weight_stern_factor = stern_bias_options[weight_stern]["value"]
+    else:
+        weight_close_factor = None
+        weight_stern_factor = None
+        halflife = None
 
-    df['shell_class'] = df.apply(determine_shell_class, axis=1)
+    analysis = selected_model(
+        df=st.session_state.current_data.copy(),                
+        max_correlation=max_correlation,
+        halflife=halflife,
+        weight_close=weight_close_factor,
+        weight_stern=weight_stern_factor,
+        include_coxswains=include_coxswains,
+        erg_scores=st.session_state.athlete_ergs_df if 'athlete_ergs_df' in st.session_state else None,
+        shell_class=shell_class,
+    )
 
-    # Apply shell class filter
-    filtered_data = df[df['shell_class'].isin(shell_class)]
-    # Add sides to names  (also adds coxswain to personnel if needed)
-    filtered_data = append_rigging_to_names(filtered_data)
+    if st.session_state.rerun or 'analysis' not in st.session_state or st.session_state.analysis is None:
+        st.session_state.analysis = analysis.run_analysis()
+        st.session_state.optimizer = LineupOptimizer(analysis)
+    else:
+        analysis = st.session_state.analysis         
 
-    # Only go forward if there is data:
-    if not filtered_data.empty:
-        
-        # Add piece names
-        filtered_data['Piece'] = filtered_data['Race Session (date)'].astype(str) + " #" + filtered_data['Piece'].astype(str)
-
-        # Sides count
-        st.session_state.sides_count = get_rower_sides_count(filtered_data)
-
-        if selected_model.uses_custom_weighting:
-            weight_close_factor = close_races_options[weight_close]["value"]
-            weight_stern_factor = stern_bias_options[weight_stern]["value"]
-        else:
-            weight_close_factor = None
-            weight_stern_factor = None
-            halflife = None
-
-        if st.session_state.rerun or 'analysis' not in st.session_state or st.session_state.analysis is None:
-            analysis = selected_model(
-                df=filtered_data,                
-                max_correlation=max_correlation,
-                halflife=halflife,
-                weight_close=weight_close_factor,
-                weight_stern=weight_stern_factor,
-                include_coxswains=include_coxswains,
-                erg_scores=st.session_state.athlete_ergs_df if 'athlete_ergs_df' in st.session_state else None
-            )
-
-            st.session_state.analysis = analysis.run_analysis()
-            st.session_state.optimizer = LineupOptimizer(analysis)
-        else:
-            analysis = st.session_state.analysis         
-
-### Main UI
+# Main UI
 show_athletes = (
     selected_model.show_athletes
     and 'current_data' in st.session_state
     and not st.session_state.current_data.empty
 )
 
-if show_athletes:
-    (
-        data_tab, athletes_tab, performance_tab, corr_tab, validation_tab,
-        syn_tab, new_lineup_tab, lineup_tab, optimal_tab, time_tab, debug_tab
-    ) = st.tabs([
-        "Data", "Athletes", "Performance", "Correlations", "Validation",
-        "Synergies", "New Lineup", "Lineup Testing", "Optimal Lineups", "Over Time", "Debug"
-    ])
+# # Always display the instructions
+# st.expander("Instructions", expanded=True).markdown(instructions_section.render())
+
+# Determine which tabs to show based on data availability
+if st.session_state.current_data.empty:
+    # Show only the data tab if current data is empty
+    data_tab = st.tabs(["Data"])[0]
+    with data_tab:
+        data_section.render()
 else:
-    (
-        data_tab, performance_tab, corr_tab, validation_tab, syn_tab,
-        new_lineup_tab, lineup_tab, optimal_tab, time_tab, debug_tab
-    ) = st.tabs([
-        "Data", "Performance", "Correlations", "Validation", "Synergies",
-        "New Lineup", "Lineup Testing", "Optimal Lineups", "Over Time", "Debug"
-    ])
-
-with data_tab:
-    data_section.render()
-
-if show_athletes:
-    with athletes_tab:
-        athletes_section.render()
-
-with time_tab:
-    # time_section.render(analysis, filtered_data, run_history, lookback_days, run_regression, models, max_correlation, halflife, weight_close_factor, weight_stern_factor, include_coxswains)
-    st.write("Not implemented yet.")
-
-with performance_tab:
-    performance_section.render(st.session_state.sides_count)
-
-with corr_tab:
-    correlations_section.render()
-
-with new_lineup_tab:
-    new_lineup_section.render()
+    # Define tab lists based on whether to show athletes
+    if show_athletes:
+        tabs = [
+            "Data", "Athletes", "Performance", "Correlations", "Validation",
+            "Synergies", "New Lineup", "Lineup Testing", "Optimal Lineups", "Over Time", "Debug"
+        ]
+    else:
+        tabs = [
+            "Data", "Performance", "Correlations", "Validation", "Synergies",
+            "New Lineup", "Lineup Testing", "Optimal Lineups", "Over Time", "Debug"
+        ]
+    
+    # Create tabs
+    all_tabs = st.tabs(tabs)
+    
+    # Map tab variables to the created tabs
+    tab_map = {name: tab for name, tab in zip(tabs, all_tabs)}
+    
+    # Populate each tab
+    with tab_map["Data"]:
+        data_section.render()
         
-with lineup_tab:
-    lineup_section.render()
-
-with validation_tab:
-    validation_section.render()    
-
-with syn_tab:
-    synergy_section.render()
-
-with debug_tab:
-    debug_section.render(max_correlation)
-
-with optimal_tab:
-    optimal_section.render()
+    if show_athletes:
+        with tab_map["Athletes"]:
+            athletes_section.render()
+    
+    with tab_map["Performance"]:
+        performance_section.render(st.session_state.sides_count)
+    
+    with tab_map["Correlations"]:
+        correlations_section.render()
+    
+    with tab_map["New Lineup"]:
+        new_lineup_section.render()
+    
+    with tab_map["Lineup Testing"]:
+        lineup_section.render()
+    
+    with tab_map["Validation"]:
+        validation_section.render()
+    
+    with tab_map["Synergies"]:
+        synergy_section.render()
+    
+    with tab_map["Debug"]:
+        debug_section.render(max_correlation)
+    
+    with tab_map["Optimal Lineups"]:
+        optimal_section.render()
+    
+    with tab_map["Over Time"]:
+        time_section.render()
 
 # Finally, set rerun analysis to False by default
 st.session_state.rerun = False

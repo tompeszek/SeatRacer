@@ -5,8 +5,11 @@ from seatracer.analysis.registry import ModelRegistry
     key="glm", 
     name="Generalized Linear Model",
     description="Flexible generalized linear model, similiar to Ordinary Least Squares (OLS) regression, but with the ability to apply weights.",
-    recommended=False,
+    recommended=True,
     order=2,
+    show_athletes=True,
+    uses_custom_weighting=True,
+    can_have_stern_bias=True,
 )
 class GLMAnalysis(StatsModelAnalysis):
     """

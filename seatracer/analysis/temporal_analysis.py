@@ -1,52 +1,46 @@
 import pandas as pd
 import numpy as np
-from utils.helpers import *
+from typing import Dict, List, Optional, Any
 
 class TemporalAnalysis:
     """
-    Class for analyzing rower performance over time.
+    Class for analyzing rower performance over time using an Analysis instance.
+    Allows tracking changes in athlete performance across multiple time windows.
     """
-    def __init__(self, df, lookback=30):
+    def __init__(self, analysis_instance, lookback=30):
         """
-        Initialize the analysis with rowing data.
+        Initialize the temporal analysis with an Analysis instance.
         
         Parameters:
         -----------
-        df : pandas DataFrame
-            DataFrame containing rowing race data
+        analysis_instance : Analysis
+            An instance of a class derived from the Analysis base class
         lookback : int
             Number of days to look back for each analysis point
         """
-        self.df = df.copy()
+        self.analysis = analysis_instance
         self.lookback = lookback
         self.time_series_df = None
         self.stats_df = None
         self.final_results = None
     
-    def run_analysis(self, regression_func, **kwargs):
+    def run_temporal_analysis(self, get_history=True):
         """
-        Run regression analysis over time and store results.
-        
-        Parameters:
-        -----------
-        regression_func : function
-            Function to run regression analysis (e.g., run_regression)
-        **kwargs : dict
-            Additional parameters to pass to the regression function
+        Run analysis over time windows and store results.
             
         Returns:
         --------
         self : TemporalAnalysis
             Returns self for method chaining
         """
-        # Ignore overly-correlated athletes - will likely happen in smaller windows
-        kwargs['max_correlation'] = 2.0
-
+        # Get a reference to the dataframe from the analysis object
+        df = self.analysis.df.copy()
+        
         # Ensure date column is datetime
-        self.df['Race Session (date)'] = pd.to_datetime(self.df['Race Session (date)'])
+        df['Race Session (date)'] = pd.to_datetime(df['Race Session (date)'])
         
         # Get unique dates in chronological order
-        unique_dates = sorted(self.df['Race Session (date)'].unique())
+        unique_dates = sorted(df['Race Session (date)'].unique())
         
         # Store results for all dates
         coefficients_by_date = {}
@@ -59,20 +53,20 @@ class TemporalAnalysis:
             lookback_start = current_date - pd.Timedelta(days=self.lookback)
             
             # Filter data within the lookback window
-            window_df = self.df[(self.df['Race Session (date)'] >= lookback_start) & 
-                               (self.df['Race Session (date)'] <= current_date)].copy()
+            window_df = df[(df['Race Session (date)'] >= lookback_start) & 
+                          (df['Race Session (date)'] <= current_date)].copy()
             
-            # # Skip if not enough data in this window
-            # if len(window_df) < 5:  # Minimum number of rows needed
-            #     continue
+            # Skip if not enough data in this window
+            if len(window_df) < 5:  # Minimum number of rows needed
+                continue
             
-            # Adjust recency weights to be relative to current date if using recency
-            if 'halflife' in kwargs and kwargs['halflife'] is not None:
-                window_df = self._recalculate_recency_weights(window_df, current_date, kwargs['halflife'])
+            # Create a temporary Analysis object with the window data
+            window_analysis = self._create_window_analysis(window_df, current_date)
             
             try:
-                # Run regression on this window
-                window_results = regression_func(window_df, **kwargs)
+                # Run analysis on this window
+                window_analysis.run_analysis(get_history=False)
+                window_results = window_analysis.get_final_results()
                 
                 # Store results with this date
                 results_by_date[current_date] = window_results
@@ -106,8 +100,87 @@ class TemporalAnalysis:
         
         return self
     
+    def _create_window_analysis(self, window_df, current_date):
+        """
+        Create an Analysis instance for a specific time window.
+        Preserves all settings from the original analysis object.
+        
+        Parameters:
+        -----------
+        window_df : pandas DataFrame
+            DataFrame containing rowing data for a specific time window
+        current_date : datetime
+            Current date being analyzed
+            
+        Returns:
+        --------
+        window_analysis : Analysis
+            New Analysis instance for the window
+        """
+        # Create a clone of the analysis with the window data
+        # We'll copy the analysis object and update its dataframe
+        window_analysis = self._clone_analysis(window_df)
+        
+        # If the analysis uses recency weighting, recalculate based on current date
+        if hasattr(window_analysis, 'halflife') and window_analysis.halflife is not None:
+            # Recalculate recency weights relative to current date
+            window_df = self._recalculate_recency_weights(window_df, current_date, window_analysis.halflife)
+            window_analysis.df = window_df
+            
+        return window_analysis
+    
+    def _clone_analysis(self, window_df):
+        """
+        Create a clone of the original analysis object with a new dataframe.
+        
+        Parameters:
+        -----------
+        window_df : pandas DataFrame
+            DataFrame to use in the new analysis object
+            
+        Returns:
+        --------
+        cloned_analysis : Analysis
+            A new Analysis instance with the same parameters as the original
+        """
+        # Get the class of the original analysis
+        analysis_class = self.analysis.__class__
+        
+        # Create a new instance with the same parameters but the window dataframe
+        # We extract all the constructor parameters from the original analysis
+        # except for the dataframe which we replace with window_df
+        
+        # Get all the attributes that are constructor parameters
+        constructor_params = {}
+        
+        # Copy all dataclass fields (assuming Analysis is a dataclass)
+        for field in self.analysis.__dataclass_fields__.keys():
+            if field != 'df':  # Skip the dataframe
+                constructor_params[field] = getattr(self.analysis, field)
+        
+        # Create a new instance with the window dataframe and copied parameters
+        cloned_analysis = analysis_class(df=window_df, **constructor_params)
+        
+        return cloned_analysis
+    
     def _recalculate_recency_weights(self, df, current_date, halflife):
-        """Recalculate recency weights relative to the current analysis date"""
+        """
+        Recalculate recency weights relative to the current analysis date.
+        
+        Parameters:
+        -----------
+        df : pandas DataFrame
+            DataFrame containing rowing data
+        current_date : datetime
+            Current date being analyzed
+        halflife : float
+            Halflife parameter for recency weighting
+            
+        Returns:
+        --------
+        df : pandas DataFrame
+            DataFrame with updated recency weights
+        """
         df['days_since_current'] = (current_date - df['Race Session (date)']).dt.days
         df['recency_factor'] = np.exp(-df['days_since_current'] / halflife)
         df['recency_factor'] = df['recency_factor'].clip(lower=0.1)
@@ -128,7 +201,19 @@ class TemporalAnalysis:
         return df
     
     def _calculate_athlete_statistics(self, all_athletes):
-        """Calculate statistics for each athlete's time series"""
+        """
+        Calculate statistics for each athlete's time series.
+        
+        Parameters:
+        -----------
+        all_athletes : set
+            Set of all athletes found in the analysis
+            
+        Returns:
+        --------
+        stats_df : pandas DataFrame
+            DataFrame containing statistics for each athlete
+        """
         stats = []
         
         for athlete in all_athletes:
@@ -154,11 +239,30 @@ class TemporalAnalysis:
         return stats_df
     
     def get_final_results(self):
-        """Get the results from the most recent analysis window"""
+        """
+        Get the results from the most recent analysis window.
+        
+        Returns:
+        --------
+        final_results : dict
+            Results from the most recent analysis window
+        """
         return self.final_results
     
     def get_athlete_trend(self, athlete):
-        """Get time series for a specific athlete"""
+        """
+        Get time series for a specific athlete.
+        
+        Parameters:
+        -----------
+        athlete : str
+            Name of the athlete
+            
+        Returns:
+        --------
+        trend_df : pandas DataFrame
+            DataFrame containing time series data for the athlete
+        """
         if self.time_series_df is None:
             raise ValueError("No analysis results available")
         
@@ -168,7 +272,19 @@ class TemporalAnalysis:
         return self.time_series_df[['date', athlete]].dropna()
     
     def get_position_athletes(self, position):
-        """Get list of athletes for a specific position"""
+        """
+        Get list of athletes for a specific position.
+        
+        Parameters:
+        -----------
+        position : str
+            Position name (Starboard, Port, Sculling, Coxswain)
+            
+        Returns:
+        --------
+        athletes : list
+            List of athletes in the specified position
+        """
         if self.stats_df is None:
             raise ValueError("No analysis results available")
         
