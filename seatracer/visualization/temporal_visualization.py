@@ -132,15 +132,17 @@ class TemporalVisualizer:
                     # Use dates for x-axis
                     x_values = athlete_data['date']
                 
-                # Hover template with correct information
-                hovertemplate = f'Athlete: {athlete}<br>Speed: +%{{y:.1f}}<br>Coefficient: %{{customdata:.1f}}<br>Min/Max: {min_val:.1f}/{max_val:.1f}<extra></extra>'
-                
                 # Use the raw negative speed so higher is better
                 y_values = -athlete_data[speed_col]
-                
-                # Add coefficient as custom data for hover
-                customdata = athlete_data[athlete]
-                
+
+                # Create a list of hover templates, one for each point
+                hover_texts = []
+                for val in -athlete_data[speed_col]:
+                    if val == 0:
+                        hover_texts.append(f'{athlete}: Leader')
+                    else:
+                        hover_texts.append(f'{athlete}: +{-val:.1f}"/500m')
+
                 fig.add_trace(go.Scatter(
                     x=x_values,
                     y=y_values,
@@ -149,8 +151,9 @@ class TemporalVisualizer:
                     visible=visible,
                     line=dict(width=2),
                     marker=dict(size=6),
-                    hovertemplate=hovertemplate,
-                    customdata=customdata
+                    text=hover_texts,
+                    hovertemplate='%{text}<extra></extra>',
+                    customdata=-athlete_data[speed_col]  # Still keep the customdata for other uses if needed
                 ))
                 
             # Set layout        
@@ -293,7 +296,7 @@ class TemporalVisualizer:
                     x_values = athlete_data['date']
                     
                 # Hover template with correct information
-                hovertemplate = f'Athlete: {athlete}<br>Speed: +%{{y:.1f}}<br>Coefficient: %{{customdata:.1f}}{min_max_text}<extra></extra>'
+                hovertemplate = f'Athlete: {athlete}<br>Speed: +%{{y:.1f}}'#<br>Coefficient: %{{customdata:.1f}}{min_max_text}<extra></extra>'
                 
                 # Use the raw negative speed so higher is better
                 y_values = -athlete_data[speed_col]

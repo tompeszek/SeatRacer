@@ -15,9 +15,13 @@ def render():
         
         with col2:
             show_per_piece = st.checkbox(
-                "Show timeline per piece",
+                "X-axis by Piece",
                 key='show_timeline_per_piece'
             )
+            if show_per_piece:
+                st.caption("X-axis will be by piece, not by date.")
+            else:
+                st.caption("X-axis will be by date, not by piece.")
         
         with col3:
             lookback_days = st.slider(

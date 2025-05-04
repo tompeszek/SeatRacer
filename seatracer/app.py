@@ -1,3 +1,6 @@
+# import warnings
+# warnings.filterwarnings('error')  # This converts warnings to exceptions
+
 import debugpy
 
 if not debugpy.is_client_connected():  # Check if a debugger is already attached
@@ -13,12 +16,6 @@ from seatracer.analysis.analysis_base import *
 from analysis.registry import ModelRegistry
 from optimize.lineup_optimizer import LineupOptimizer
 from utils.grouping import *
-from utils.helpers import (
-    add_athlete_counts,
-    determine_shell_class,
-    get_rower_sides_count,
-    append_rigging_to_names
-)
 from visualization.charts import *
 
 from seatracer.ui.sections import (
@@ -162,13 +159,14 @@ st.sidebar.divider()
 st.sidebar.subheader("Parameters")
 
 max_correlation = st.sidebar.slider("Max Allowed Correlation", min_value = 0.5, max_value = 1.0, value = 0.8, step = 0.01, on_change=lambda: setattr(st.session_state, 'rerun', True))
+st.sidebar.caption(f"_Only show athletes with no correlations greater than {max_correlation} to any other athlete_")
 
-# Checkbox options
-include_coxswains = st.sidebar.checkbox('Coxswains')
-if include_coxswains :
-    st.sidebar.caption(f"_Include coxswains in analysis_")
-else:
-    st.sidebar.caption(f"_Ignore coxswains - assume every cox has minimal impact on crew performance_")
+# # Checkbox options
+# include_coxswains = st.sidebar.checkbox('Coxswains')
+# if include_coxswains :
+#     st.sidebar.caption(f"_Include coxswains in analysis_")
+# else:
+#     st.sidebar.caption(f"_Ignore coxswains - assume every cox has minimal impact on crew performance_")
 
 # Conditional analysis execution
 if not st.session_state.current_data.empty:
@@ -186,7 +184,7 @@ if not st.session_state.current_data.empty:
         halflife=halflife,
         weight_close=weight_close_factor,
         weight_stern=weight_stern_factor,
-        include_coxswains=include_coxswains,
+        # include_coxswains=include_coxswains,
         erg_scores=st.session_state.athlete_ergs_df if 'athlete_ergs_df' in st.session_state else None,
         shell_class=shell_class,
     )

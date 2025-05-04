@@ -16,14 +16,14 @@ class Analysis(ABC):
     halflife: float = None
     weight_close: float = None
     weight_stern: float = None
-    include_coxswains: bool = True
+    include_coxswains: bool = False
     seat_breakdown: bool = True  
     lookback: int = 10000
     erg_scores: object = None
     shell_class: object = None
     
     def __post_init__(self):
-        self.df = self.df.copy()
+        self.df = self.df.copy().sort_values(by=['Race Session (date)', 'Piece'])
         self.time_series_df = None
         self.stats_df = None
         self.final_results = None
@@ -169,9 +169,9 @@ class Analysis(ABC):
                     window_df = df[(df['Race Session (date)'] >= lookback_start) & 
                                     (df['Race Session (date)'] <= current_date)].copy()
                     
-                    # Skip if not enough data in this window
-                    if len(window_df) < 5:  # Minimum number of rows needed
-                        continue
+                    # # Skip if not enough data in this window
+                    # if len(window_df) < 5:  # Minimum number of rows needed
+                    #     continue
                     
                     # Adjust recency weights to be relative to current date if using recency
                     if self.halflife is not None:
