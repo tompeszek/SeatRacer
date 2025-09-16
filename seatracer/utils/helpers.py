@@ -1,4 +1,5 @@
 # helpers.py
+import streamlit as st
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -50,7 +51,7 @@ def get_rigging_options(boat_class):
         case '8x+':
             return ['x/x/x/x/x/x/x/x/c']
         case _:
-            return []    
+            return []
 
 def determine_shell_class(row):
     # print(row)
@@ -186,6 +187,7 @@ def calculate_closest_margin(df):
 def append_rigging_to_names(df):
     """Appends superscript rigging information to each rower's name in the Personnel column."""
     rig_map = {'p': 'ᵖ', 's': 'ˢ', 'c': 'ᶜ', 'x': 'ˣ'}  # Superscript mappings
+    superscript_chars = set(rig_map.values())  # Set of all superscript characters
     df = df.copy()  # Avoid modifying original DataFrame
 
     def process_row(row):
@@ -194,13 +196,26 @@ def append_rigging_to_names(df):
 
         # Handle Coxswain if rigging has one extra entry
         if len(rigging_list) - 1 == len(personnel_list):
+            if len(rigging_list) % 2 == 0:
+                st.warning(f"Conflict between rigging configuration and personnel list: {row}")
             personnel_list.insert(0, 'Cox')
             df.at[row.name, 'Personnel'] = 'Cox/' + row['Personnel']  # Update DataFrame
 
         elif len(rigging_list) != len(personnel_list):
             raise ValueError(f"Rigging and Personnel lists are not the same length: {row}")
         
-        return '/'.join(f"{name}{rig_map.get(rig, '')}" for name, rig in zip(personnel_list, rigging_list))
+        # Process each athlete-rigging pair
+        result = []
+        for name, rig in zip(personnel_list, rigging_list):
+            # Check if name already ends with a superscript character
+            if name and name[-1] in superscript_chars:
+                # Name already has superscript, leave it as is
+                result.append(name)
+            else:
+                # Append the appropriate superscript based on rigging
+                result.append(f"{name}{rig_map.get(rig, '')}")
+        
+        return '/'.join(result)
 
     df['Personnel'] = df.apply(process_row, axis=1)
     return df

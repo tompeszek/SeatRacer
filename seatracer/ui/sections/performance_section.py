@@ -17,15 +17,41 @@ def render(sides_count):
     coxswains = [rower for rower, sides in sides_count.items() if sides['Coxswain'] > 0]
     scullers = [rower for rower, sides in sides_count.items() if sides['Scull'] > 0]
 
-    starboard_df = athletes_df.loc[athletes_df.index.isin(starboard_rowers)].copy()
-    port_df = athletes_df.loc[athletes_df.index.isin(port_rowers)].copy()
-    coxswain_df = athletes_df.loc[athletes_df.index.isin(coxswains)].copy()
-    sculler_df = athletes_df.loc[athletes_df.index.isin(scullers)].copy()
-
     st.subheader("Speed Coefficients")
-    coefficient_boat_classes = ["8+", "4+/-", "2-"]
-    st.write("_Number of seconds, over 2k in a 4-, slower than best rower on the same side_")
-    col1, col2 = st.columns([1, 1])
+    coefficient_boat_classes = ["8+", "4x/-", "2x/-", "1x"]
+    coefficient_race_distances = [500, 1000, 1500, 2000, 4000, 6000]
+    selected_boat_class = st.radio("Boat Class:", coefficient_boat_classes, index=1, horizontal=True, key="boat_class")
+    selected_race_distance = st.radio("Race Distance:", coefficient_race_distances, index = 3, horizontal=True, key="race_distance")
+    st.caption(f"_Number of seconds, over {selected_race_distance}m in a {selected_boat_class}, slower than best rower on the same side_")
+
+    # Process all dataframes in a consistent way
+    athlete_groups = {
+        'starboard': starboard_rowers,
+        'port': port_rowers,
+        'coxswain': coxswains,
+        'sculler': scullers
+    }
+
+    # Create and process all dataframes
+    dfs = {
+        group: adjust_metrics(
+            athletes_df.loc[athletes_df.index.isin(indices)].copy(),
+            selected_boat_class, 
+            selected_race_distance
+        ) for group, indices in athlete_groups.items()
+    }
+
+    # Unpack the processed dataframes
+    starboard_df = dfs['starboard']
+    port_df = dfs['port']
+    coxswain_df = dfs['coxswain']
+    sculler_df = dfs['sculler']
+
+    if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
+        col1, col2, col3 = st.columns([1, 1, 1])
+    else:
+        col1, col2 = st.columns([1, 1])
+
     with col1:
         st.write("Starboard")
         # starboard_confidence = st.slider("Max Uncertainty", key="starboard_uncertainty", min_value = 5, max_value = 100, value = 10, step = 1)
@@ -36,10 +62,16 @@ def render(sides_count):
         # starboard_confidence = st.slider("Max Uncertainty", key="port_uncertainty", min_value = 5, max_value = 100, value = 10, step = 1)
         generate_side_chart(st, port_df)
         
+    if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
+        with col3:
+            st.write("Coxswains")
+            generate_side_chart(st, coxswain_df)
+    
     if len(dropped_athletes_df) > 0:
         # need to fix speed
         starboard_dropped_df = dropped_athletes_df.loc[dropped_athletes_df.index.isin(starboard_rowers)].sort_index().copy()
         port_dropped_df = dropped_athletes_df.loc[dropped_athletes_df.index.isin(port_rowers)].sort_index().copy()
+        coxswain_dropped_df = dropped_athletes_df.loc[dropped_athletes_df.index.isin(coxswains)].sort_index().copy()
 
         # Calculate the best coefficients for each category
         starboard_best = min(starboard_df['Coefficient']) if not starboard_df.empty else None
@@ -74,10 +106,15 @@ def render(sides_count):
         
         starboard_dropped_df = calculate_average_behind(starboard_dropped_df, starboard_best, port_best, coxswain_best, sculler_best)
         port_dropped_df = calculate_average_behind(port_dropped_df, starboard_best, port_best, coxswain_best, sculler_best)
+        coxswain_dropped_df = calculate_average_behind(coxswain_dropped_df, starboard_best, port_best, coxswain_best, sculler_best)
 
         st.subheader("Dropped Rowers")
         st.write("_Rowers with high uncertainty due to high colinearity_")
-        col_star, col_port = st.columns([1, 1])
+
+        if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
+            col_star, col_port, col_cox = st.columns([1, 1, 1])
+        else:
+            col_star, col_port = st.columns([1, 1])
 
         with col_star:
             st.write("Starboard")                
@@ -87,9 +124,17 @@ def render(sides_count):
             st.write("Port")                
             st.dataframe(port_dropped_df, column_order=["Group Members", "Average Behind"])
 
+        if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
+            with col_cox:
+                st.write("Coxswains")                
+                st.dataframe(coxswain_dropped_df, column_order=["Group Members", "Average Behind"])
+
     
     st.subheader("Confidence Intervals")
-    bars_chart_starboard, bars_chart_port = st.columns([1, 1])
+    if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
+        bars_chart_starboard, bars_chart_port, bars_chart_cox = st.columns([1, 1, 1])
+    else:
+        bars_chart_starboard, bars_chart_port = st.columns([1, 1])
     with bars_chart_starboard:
         st.write("Starboard")
         starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
@@ -102,14 +147,19 @@ def render(sides_count):
         port_bar_chart = generate_confidence_bars_with_gradient(port_df, port_confidence)
         st.altair_chart(port_bar_chart, use_container_width=True)
 
+    if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
+        with bars_chart_cox:
+            st.write("Coxswains")            
+            coxswain_confidence = st.slider("Confidence", key="coxswain_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
+            port_bar_chart = generate_confidence_bars_with_gradient(coxswain_df, coxswain_confidence)
+            st.altair_chart(port_bar_chart, use_container_width=True)
+
     st.subheader("One-on-One Probabilities")
     st.write("_Probability of the rower in the first column outperforming the rowers listed in the first row_")
-    col3, col4 = st.columns([1, 1])
-    st.markdown(
-        "<style> td:first-child { font-weight: bold; } </style>", 
-        unsafe_allow_html=True
-    )
-
+    if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
+        col3, col4, col5 = st.columns([1, 1, 1])
+    else:
+        col3, col4 = st.columns([1, 1])
     prob_matrix = compute_probability_matrix(starboard_df).sort_index()
     prob_matrix = prob_matrix[sorted(prob_matrix.columns)]
     col3.write("Starboard")
@@ -120,14 +170,30 @@ def render(sides_count):
     col4.write("Port")
     col4.dataframe(prob_matrix)
 
-    st.divider()
+    if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
+        prob_matrix = compute_probability_matrix(coxswain_df).sort_index()
+        prob_matrix = prob_matrix[sorted(prob_matrix.columns)]
+        col5.write("Coxswains")
+        col5.dataframe(prob_matrix)
 
-    col5, col6 = st.columns([1, 1])
-    # col5.subheader("Boat Classes")
-    # generate_side_chart(col5, shell_classes_df, "Boat Classes")
+def standardize_speed(speed, boat_class, meters):
+    number_of_rowers = int(boat_class[0])
+    if boat_class[0] == '8' and st.session_state.get('include_coxswains', False):
+        number_of_rowers = 9
+    standardized_speed = (speed / 2000.0 * 4.0) * meters / number_of_rowers
+    return standardized_speed
 
-    # col5.subheader("Coxswains")
-    # generate_side_chart(col5, coxswain_df)
-    # coxswain_matrix = compute_probability_matrix(coxswain_df).sort_index()
-    # coxswain_matrix = coxswain_matrix[sorted(coxswain_matrix.columns)]
-    # col5.dataframe(coxswain_matrix)
+def adjust_metrics(df, boat_class, race_distance):
+    """Adjust Speed, Lower, and Upper metrics. Use user-selected boat/distance"""
+    # Create adjusted columns in one pass
+    for col in ['Speed', 'Lower', 'Upper', 'Coefficient']:
+        df[f'{col}_Adjusted'] = df[col].apply(
+            lambda val: standardize_speed(val, boat_class, race_distance)
+        )
+    
+    # Format the Behind_Adjusted column
+    df['Behind_Adjusted'] = df['Speed_Adjusted'].apply(
+        lambda x: f"+{round(x, 1)}" if x > 0 else f"{round(x, 1)}"
+    )
+    
+    return df

@@ -3,6 +3,9 @@ import streamlit as st
 from seatracer.utils.grouping import group_highly_correlated_parameters
 
 def render(max_correlation):
+    st.dataframe(st.session_state.analysis.final_results['shell_classes'])
+    st.dataframe(st.session_state.analysis.final_results['athletes'])
+
     if st.session_state.athlete_ergs_df is None:
         st.write("No athlete ergs data available.")
     else:

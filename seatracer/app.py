@@ -1,3 +1,9 @@
+# TODO:
+# Include coxswains
+# Compare model/parameter accuracy
+# Lineup optimizer
+# Find errors/issues
+
 # import warnings
 # warnings.filterwarnings('error')  # This converts warnings to exceptions
 
@@ -31,6 +37,8 @@ from seatracer.ui.sections import (
     debug_section,
     time_section,
     instructions_section,
+    fairness_section,
+    individual_section
 )
 
 st.set_page_config(
@@ -156,17 +164,19 @@ if selected_model.uses_custom_weighting:
 
 ## Parameters
 st.sidebar.divider()
-st.sidebar.subheader("Parameters")
+st.sidebar.header("Parameters")
 
-max_correlation = st.sidebar.slider("Max Allowed Correlation", min_value = 0.5, max_value = 1.0, value = 0.8, step = 0.01, on_change=lambda: setattr(st.session_state, 'rerun', True))
+st.sidebar.markdown("### Max Allowed Correlation")
+max_correlation = st.sidebar.slider("Max Allowed Correlation", label_visibility='collapsed', min_value = 0.5, max_value = 1.0, value = 0.8, step = 0.01, on_change=lambda: setattr(st.session_state, 'rerun', True))
 st.sidebar.caption(f"_Only show athletes with no correlations greater than {max_correlation} to any other athlete_")
 
-# # Checkbox options
-# include_coxswains = st.sidebar.checkbox('Coxswains')
-# if include_coxswains :
-#     st.sidebar.caption(f"_Include coxswains in analysis_")
-# else:
-#     st.sidebar.caption(f"_Ignore coxswains - assume every cox has minimal impact on crew performance_")
+# Checkbox options
+st.sidebar.markdown("### Coxswains")
+include_coxswains = st.sidebar.toggle('Evaluate Coxswain Performance', key="include_coxswains", value=True, on_change=lambda: setattr(st.session_state, 'rerun', True))
+if include_coxswains :
+    st.sidebar.caption(f"_Include coxswains in analysis_")
+else:
+    st.sidebar.caption(f"_Ignore coxswains - assume every coxswain has minimal impact on crew performance_")
 
 # Conditional analysis execution
 if not st.session_state.current_data.empty:
@@ -181,10 +191,10 @@ if not st.session_state.current_data.empty:
     analysis = selected_model(
         df=st.session_state.current_data.copy(),                
         max_correlation=max_correlation,
-        halflife=halflife,
+        halflife=halflife,  
         weight_close=weight_close_factor,
         weight_stern=weight_stern_factor,
-        # include_coxswains=include_coxswains,
+        include_coxswains=include_coxswains,
         erg_scores=st.session_state.athlete_ergs_df if 'athlete_ergs_df' in st.session_state else None,
         shell_class=shell_class,
     )
@@ -215,12 +225,12 @@ else:
     # Define tab lists based on whether to show athletes
     if show_athletes:
         tabs = [
-            "Data", "Athletes", "Performance", "Correlations", "Validation",
+            "Data", "Athletes", "Performance", "Individual", "Fairness", "Correlations", "Validation",
             "Synergies", "New Lineup", "Lineup Testing", "Optimal Lineups", "Over Time", "Debug"
         ]
     else:
         tabs = [
-            "Data", "Performance", "Correlations", "Validation", "Synergies",
+            "Data", "Performance", "Individual", "Fairness", "Correlations", "Validation", "Synergies",
             "New Lineup", "Lineup Testing", "Optimal Lineups", "Over Time", "Debug"
         ]
     
@@ -240,6 +250,12 @@ else:
     
     with tab_map["Performance"]:
         performance_section.render(st.session_state.sides_count)
+
+    with tab_map["Individual"]:
+        individual_section.render()
+    
+    with tab_map["Fairness"]:
+        fairness_section.render(st.session_state.sides_count)
     
     with tab_map["Correlations"]:
         correlations_section.render()

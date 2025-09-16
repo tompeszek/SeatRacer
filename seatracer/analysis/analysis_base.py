@@ -49,7 +49,8 @@ class Analysis(ABC):
         if not self.df.empty:
             
             # Add piece names
-            self.df['Piece'] = self.df['Race Session (date)'].astype(str) + " #" + self.df['Piece'].astype(str)
+            self.df['PieceNumber'] = self.df['Piece']
+            self.df['Piece'] = self.df['Race Session (date)'].astype(str) + " #" + self.df['Piece'].astype(str)            
 
             # Sides count
             st.session_state.sides_count = get_rower_sides_count(self.df)
@@ -412,21 +413,105 @@ class Analysis(ABC):
         return self.temporal_data
     
     def _create_comparison_df(self, df, y, results, X):
-        """Create dataframe comparing actual vs. predicted values"""
+        """Create dataframe comparing actual vs. predicted values with contribution breakdown"""
         fitted_values = results.predict(X)
         
+        # Get model parameters
+        params = results.params
+        
+        # Create dataframe for basic comparison
         comparison_df = pd.DataFrame({
             'Actual Pace': y.apply(lambda x: seconds_to_time(x)),
             'Actual Pace Seconds': y,
             'Model Pace': fitted_values.apply(lambda x: seconds_to_time(x)),
             'Model Pace Seconds': fitted_values
         })
+        
+        # Add metadata columns
         comparison_df['Piece'] = df['Piece']
         comparison_df['Crew'] = df['Personnel']
         comparison_df['shell_class'] = df['shell_class']
         comparison_df['athlete_count'] = df['athlete_count']
         comparison_df['Delta'] = (y - fitted_values).round(2)
-        comparison_df = comparison_df[['Piece', 'Crew', 'Actual Pace', 'Model Pace', 'Delta', 'athlete_count', 'shell_class']]
+        comparison_df['KM'] = df['KM']
+        
+        # Create contribution breakdowns
+        contribution_breakdowns = []
+        
+        for i, row in X.iterrows():
+            # Calculate contribution of each parameter
+            contributions = {}
+            
+            # Only include non-zero contributions to keep the output manageable
+            for col in X.columns:
+                if row[col] != 0 and col in params:
+                    contribution = row[col] * params[col]
+                    if abs(contribution) > 0.01:  # Filter out very small contributions
+                        contributions[col] = round(contribution, 2)
+            
+            # Categorize contributions
+            athlete_contributions = {}
+            coxswain_contributions = {}
+            shell_contributions = {}
+            piece_contributions = {}
+            other_contributions = {}
+            
+            for param, value in contributions.items():
+                if param.startswith('athlete_'):
+                    athlete_contributions[param] = value
+                elif param.startswith('coxswain_'):
+                    coxswain_contributions[param] = value
+                elif param.startswith('shell_class_'):
+                    shell_contributions[param] = value
+                elif param.startswith('piece_'):
+                    piece_contributions[param] = value
+                else:
+                    other_contributions[param] = value
+            
+            # Sort athletes alphabetically
+            sorted_athlete_contributions = sorted(athlete_contributions.items())
+            sorted_coxswain_contributions = sorted(coxswain_contributions.items())
+            sorted_shell_contributions = sorted(shell_contributions.items())
+            sorted_piece_contributions = sorted(piece_contributions.items())
+            sorted_other_contributions = sorted(other_contributions.items())
+            
+            # Format as string with linebreaks between categories
+            formatted_parts = []
+            
+            # Add athletes
+            if sorted_athlete_contributions:
+                athlete_part = "\n".join([f"{param}: {value}" for param, value in sorted_athlete_contributions])
+                formatted_parts.append(athlete_part)
+            
+            # Add coxswains
+            if sorted_coxswain_contributions:
+                coxswain_part = "\n".join([f"{param}: {value}" for param, value in sorted_coxswain_contributions])
+                formatted_parts.append(coxswain_part)
+            
+            # Add shell class
+            if sorted_shell_contributions:
+                shell_part = "\n".join([f"{param}: {value}" for param, value in sorted_shell_contributions])
+                formatted_parts.append(shell_part)
+            
+            # Add piece
+            if sorted_piece_contributions:
+                piece_part = "\n".join([f"{param}: {value}" for param, value in sorted_piece_contributions])
+                formatted_parts.append(piece_part)
+            
+            # Add other contributions
+            if sorted_other_contributions:
+                other_part = "\n".join([f"{param}: {value}" for param, value in sorted_other_contributions])
+                formatted_parts.append(other_part)
+            
+            # Join all parts with an extra linebreak between categories
+            breakdown = "\n\n".join(formatted_parts)
+            contribution_breakdowns.append(breakdown)
+        
+        # Add contribution breakdown column
+        comparison_df['Contribution Breakdown'] = contribution_breakdowns
+        
+        # Select and order columns
+        comparison_df = comparison_df[['Piece', 'KM', 'Crew', 'Actual Pace', 'Model Pace', 'Actual Pace Seconds', 'Model Pace Seconds', 'Delta', 'Contribution Breakdown', 'athlete_count', 'shell_class']]
         
         return comparison_df
     
@@ -867,3 +952,179 @@ class Analysis(ABC):
             return seconds_to_time(predicted_time)
         
         return predicted_time
+
+    def _add_side_aware_speed(self, df):
+        """Add side-aware speed calculations to the dataframe"""
+        df = df.copy()
+
+        # Extract suffix (ᵖ, ˢ, ᶜ, ˣ) from athlete names
+        df["Suffix"] = df.index.to_series().str.extract(r'([ᵖˢᶜˣ])$')[0]
+
+        # Determine the fastest athlete per suffix group
+        fastest_by_suffix = df.groupby("Suffix")["Coefficient"].transform("min")
+
+        # Compute speed relative to the fastest in each suffix group
+        df["Speed"] = df["Coefficient"] - fastest_by_suffix
+        df["Behind"] = df["Speed"].apply(lambda x: f"+{round(x, 1)}" if x > 0 else f"{round(x, 1)}")
+        df["Max/Min"] = df.apply(
+            lambda row: f"{round(row['Lower'] - row['Coefficient'], 1)} to {round(row['Upper'] - row['Coefficient'], 1)}",
+            axis=1
+        )
+        
+        # Add position rankings within each group
+        df["Rank"] = df.groupby("Suffix")["Coefficient"].rank(method="min")
+        df["Total In Position"] = df.groupby("Suffix")["Coefficient"].transform("count")
+
+        return df
+
+    def get_athlete_position_info(self, athlete_name):
+        """
+        Get position information for a specific athlete.
+        
+        Parameters:
+        -----------
+        athlete_name : str
+            Name of the athlete to get position info for
+            
+        Returns:
+        --------
+        dict
+            Dictionary containing position, speed, rank, and other data
+        """
+        if self.final_results is None or 'athletes' not in self.final_results:
+            return None
+        
+        # Check if athlete exists in the results
+        athletes_df = self.final_results['athletes']
+        if athlete_name not in athletes_df.index:
+            # Check if they're in dropped athletes
+            if ('dropped_athletes' in self.final_results and 
+                self.final_results['dropped_athletes'] is not None and 
+                athlete_name in self.final_results['dropped_athletes'].index):
+                # Return minimal info for dropped athletes
+                return {
+                    'name': athlete_name,
+                    'status': 'dropped',
+                    'position_suffix': athlete_name[-1] if len(athlete_name) > 0 else '',
+                    'position': self._suffix_to_position(athlete_name[-1] if len(athlete_name) > 0 else '')
+                }
+            return None
+        
+        # Get athlete's row
+        athlete_row = athletes_df.loc[athlete_name]
+        
+        # Determine position from suffix
+        position_suffix = athlete_name[-1] if len(athlete_name) > 0 else ''
+        position = self._suffix_to_position(position_suffix)
+        
+        # Get enhanced dataframe with speed calculations
+        enhanced_df = self._add_side_aware_speed(athletes_df)
+        
+        # Extract relevant data
+        if athlete_name in enhanced_df.index:
+            enhanced_row = enhanced_df.loc[athlete_name]
+            result = {
+                'name': athlete_name,
+                'status': 'active',
+                'coefficient': float(athlete_row['Coefficient']),
+                'lower': float(athlete_row['Lower']),
+                'upper': float(athlete_row['Upper']),
+                'position_suffix': position_suffix,
+                'position': position,
+                'speed': float(enhanced_row['Speed']),
+                'rank': int(enhanced_row['Rank']),
+                'total_in_position': int(enhanced_row['Total In Position'])
+            }
+            return result
+        
+        return None
+
+    def _suffix_to_position(self, suffix):
+        """Convert a suffix character to a position name"""
+        position_map = {
+            'ˢ': 'Starboard',
+            'ᵖ': 'Port',
+            'ˣ': 'Scull',
+            'ᶜ': 'Coxswain'
+        }
+        return position_map.get(suffix, 'Unknown')
+
+    def get_position_athletes(self, position_suffix):
+        """
+        Get all athletes from a specific position.
+        
+        Parameters:
+        -----------
+        position_suffix : str
+            Position suffix (ˢ, ᵖ, ˣ, ᶜ)
+            
+        Returns:
+        --------
+        pd.DataFrame
+            DataFrame with position-specific metrics for all athletes in that position
+        """
+        if self.final_results is None or 'athletes' not in self.final_results:
+            return pd.DataFrame()
+        
+        # Get athletes dataframe
+        athletes_df = self.final_results['athletes']
+        
+        # Filter for athletes in the specified position
+        position_athletes = athletes_df.index.str.endswith(position_suffix)
+        position_df = athletes_df[position_athletes].copy()
+        
+        # Add position-based metrics
+        if not position_df.empty:
+            position_df = self._add_side_aware_speed(position_df)
+        
+        return position_df
+
+    def calculate_position_metrics_for_coefficient(self, coefficient, position_suffix):
+        """
+        Calculate speed and rank for a hypothetical coefficient in a given position.
+        
+        Parameters:
+        -----------
+        coefficient : float
+            Coefficient to calculate metrics for
+        position_suffix : str
+            Position suffix (ˢ, ᵖ, ˣ, ᶜ)
+            
+        Returns:
+        --------
+        dict
+            Dictionary with speed and rank information
+        """
+        if self.final_results is None or 'athletes' not in self.final_results:
+            return {'speed': None, 'rank': None, 'total_in_position': 0}
+        
+        # Get athletes dataframe
+        athletes_df = self.final_results['athletes']
+        
+        # Filter for athletes in the specified position
+        position_athletes = athletes_df.index.str.endswith(position_suffix)
+        position_df = athletes_df[position_athletes].copy()
+        
+        if position_df.empty:
+            return {'speed': None, 'rank': None, 'total_in_position': 0}
+        
+        # Determine speed (difference from best in position)
+        best_coefficient = position_df['Coefficient'].min()
+        speed = coefficient - best_coefficient
+        
+        # Determine rank
+        position_df = position_df.sort_values('Coefficient')
+        coefficients = list(position_df['Coefficient'])
+        
+        # Insert the hypothetical coefficient to determine rank
+        rank = 1
+        for coeff in coefficients:
+            if coefficient <= coeff:
+                break
+            rank += 1
+        
+        return {
+            'speed': speed,
+            'rank': rank,
+            'total_in_position': len(position_df) + 1  # +1 to include the hypothetical athlete
+        }

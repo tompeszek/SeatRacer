@@ -72,8 +72,8 @@ def compute_probability_matrix(df):
 
 def generate_likelihood(row, x_vals):
     """Generate likelihood values (y-axis) based on a normal distribution."""
-    mean = row["Coefficient"]
-    std_dev = (row["Upper"] - row["Lower"]) / 3.92  # Approximate 95% CI to std dev
+    mean = row["Coefficient_Adjusted"]
+    std_dev = (row["Upper_Adjusted"] - row["Lower_Adjusted"]) / 3.92  # Approximate 95% CI to std dev
     
     # Handle zero or very small standard deviation
     if std_dev < 1e-10:
@@ -87,12 +87,12 @@ def generate_likelihood(row, x_vals):
 def generate_side_chart(col1, side_df):
     try:
         # Get the row with the smallest Speed value
-        min_speed_row = side_df.loc[side_df["Speed"].idxmin()]
-        global_x_min = min_speed_row["Lower"]
+        min_speed_row = side_df.loc[side_df["Speed_Adjusted"].idxmin()]
+        global_x_min = min_speed_row["Lower_Adjusted"]
 
         # Get the row with the largest Speed value
-        max_speed_row = side_df.loc[side_df["Speed"].idxmax()]
-        global_x_max = max_speed_row["Upper"]
+        max_speed_row = side_df.loc[side_df["Speed_Adjusted"].idxmax()]
+        global_x_max = max_speed_row["Upper_Adjusted"]
 
         num_points = 30  # Resolution of the curve
         x_vals = np.linspace(global_x_min, global_x_max, num_points)  # Shared x-axis
@@ -119,6 +119,10 @@ def generate_side_chart(col1, side_df):
                 label="Confidence",
                 y_min=0,
                 y_max=y_max_value # Auto-scale max -> None
+            ),
+            "Behind_Adjusted": st.column_config.TextColumn(
+                label="Behind",
+                help="Seconds behind the best athlete",
             ),
             "max_correlation": st.column_config.NumberColumn(
                 label="Highest Correlation",
@@ -150,7 +154,7 @@ def generate_side_chart(col1, side_df):
         col1.dataframe(
             side_df.sort_values(by="Speed"),
             column_config=column_config,
-            column_order=["Rower", "Behind", "Plus/Minus", "Likelihood Chart"],
+            column_order=["Rower", "Behind_Adjusted", "Likelihood Chart"],
             height=calculated_height
         )
 
@@ -201,13 +205,6 @@ def generate_confidence_bars_with_gradient_working(side_df, confidence=50):
     # Adjust the height per rower (reduce it for smaller bars)
     chart_height = side_df.shape[0] * 30  # Reduced space per rower (default was 50px)
     chart_height = min(chart_height, 1000)  # Cap the height at 1000px
-
-    # Get the Streamlit theme colors
-    # pc = st.get_option('theme.primaryColor')
-    # bc = st.get_option('theme.backgroundColor')
-    # sbc = st.get_option('theme.secondaryBackgroundColor')
-    # tc = st.get_option('theme.textColor')
-    # print(f"Primary Color: {pc}, Background Color: {bc}, Secondary Background Color: {sbc}, Text Color: {tc}")
     
     # Create the Altair chart with horizontal bars
     chart = alt.Chart(df_chart).mark_bar().encode(
