@@ -105,16 +105,16 @@ shell_class = st.sidebar.segmented_control(
 
 ### Models - Static Selection
 ALL_MODELS = {
-    "Linear Regression": {
+    "Ordinary Least Squares": {
         "class": OLSAnalysis,
-        "description": "Standard linear regression analysis",
-        "uses_custom_weighting": True,
-        "can_have_stern_bias": True,
+        "description": "Finds rower contributions by minimizing squared differences between predicted and actual race times",
+        "uses_custom_weighting": False,
+        "can_have_stern_bias": False,
         "show_athletes": True
     },
     "Generalized Linear Model": {
         "class": GLMAnalysis,
-        "description": "Robust generalized linear model analysis",
+        "description": "Flexible generalized linear model, similiar to Ordinary Least Squares (OLS) regression, but with the ability to apply weights.",
         "uses_custom_weighting": True,
         "can_have_stern_bias": True,
         "show_athletes": True
@@ -135,7 +135,7 @@ ALL_MODELS = {
     },
     "Gradient Descent": {
         "class": GradientDescentAnalysis,
-        "description": "Custom gradient descent optimization",
+        "description": "Iteratively adjusts each rower's estimated performance using absolute errors rather than squared errors, and can start with erg scores as initial values.",
         "uses_custom_weighting": True,
         "can_have_stern_bias": True,
         "show_athletes": True
@@ -150,7 +150,7 @@ ALL_MODELS = {
 }
 
 # Only show these three models in UI
-VISIBLE_MODELS = ["Gradient Descent", "Generalized Linear Model", "Linear Regression"]
+VISIBLE_MODELS = ["Gradient Descent", "Generalized Linear Model", "Ordinary Least Squares"]
 AVAILABLE_MODELS = {name: ALL_MODELS[name] for name in VISIBLE_MODELS}
 
 model_names = list(AVAILABLE_MODELS.keys())
