@@ -232,9 +232,11 @@ def generate_confidence_bars_with_gradient(side_df, confidence=50):
     
     # Iterate through the dataframe rows and collect data for each rower
     for index, row in side_df.iterrows():
-        # Speed (mean) and standard deviation
-        mean = row["Speed"]
-        std_dev = (row["Upper"] - row["Lower"]) / 3.92  # Approximate 95% CI to std dev
+        # Speed (mean) and standard deviation - use adjusted columns if available, otherwise fall back to original
+        mean = row.get("Speed_Adjusted", row.get("Speed"))
+        upper = row.get("Upper_Adjusted", row.get("Upper"))
+        lower = row.get("Lower_Adjusted", row.get("Lower"))
+        std_dev = (upper - lower) / 3.92  # Approximate 95% CI to std dev
         
         # Find 25th and 75th percentiles for the confidence interval
         # lower_percentile = scipy.stats.norm.ppf(0.25, mean, std_dev)

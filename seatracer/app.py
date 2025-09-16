@@ -7,12 +7,17 @@
 # import warnings
 # warnings.filterwarnings('error')  # This converts warnings to exceptions
 
-import debugpy
-
-if not debugpy.is_client_connected():  # Check if a debugger is already attached
-    debugpy.listen(("localhost", 5678))
-    print("Waiting for debugger to attach...")
-    debugpy.wait_for_client()  # Pause execution until the debugger is attached
+# Debugpy removed for production deployment
+import os
+if os.getenv('RAILWAY_ENVIRONMENT') != 'production':
+    try:
+        import debugpy
+        if not debugpy.is_client_connected():  # Check if a debugger is already attached
+            debugpy.listen(("localhost", 5678))
+            print("Waiting for debugger to attach...")
+            debugpy.wait_for_client()  # Pause execution until the debugger is attached
+    except ImportError:
+        print("debugpy not available, skipping debug setup")
 
 import streamlit as st
 import pandas as pd
@@ -47,7 +52,7 @@ st.set_page_config(
     menu_items={
         'Get Help': 'mailto:tompeszek@gmail.com',
         'Report a bug': "mailto:tompeszek@gmail.com",
-        'About': "# SeatRacer"
+        'About': "# SeatRacer - Rowing Lineup Analysis Tool"
     }
 )
 
