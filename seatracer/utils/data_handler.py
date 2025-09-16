@@ -14,10 +14,11 @@ class DataHandler:
             self.data_path = Path(__file__).parent.parent / folder_name
     
     def get_available_datasets(self):
-        """Return a list of available dataset files"""
+        """Return a list of available dataset files sorted alphabetically"""
         try:
             if self.data_path.exists():
-                return [f.name for f in self.data_path.iterdir() if f.is_file() and f.suffix.lower() == '.csv']
+                files = [f.name for f in self.data_path.iterdir() if f.is_file() and f.suffix.lower() == '.csv']
+                return sorted(files)  # Sort alphabetically
             else:
                 return []
         except Exception as e:

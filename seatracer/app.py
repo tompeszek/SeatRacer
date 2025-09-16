@@ -24,23 +24,17 @@ import pandas as pd
 import os
 
 from seatracer.analysis.analysis_base import *
-from seatracer.analysis.registry import ModelRegistry
 from seatracer.optimize.lineup_optimizer import LineupOptimizer
 from seatracer.utils.grouping import *
 from seatracer.visualization.charts import *
 
-# Force import all model modules to ensure registration
-import seatracer.analysis.models.statsmodels
-import seatracer.analysis.models.gradient_descent
-import seatracer.analysis.models.machine_learning
-import seatracer.analysis.models.trueskill
-
-# Debug: Check if models are registered
-registered_models = ModelRegistry.get_all_models()
-if not registered_models:
-    st.error("No models were registered during import. Check model registration decorators.")
-else:
-    print(f"Registered models: {list(registered_models.keys())}")
+# Static model imports - no more dynamic registry
+from seatracer.analysis.models.statsmodels.ols_analysis import OLSAnalysis
+from seatracer.analysis.models.statsmodels.glm_analysis import GLMAnalysis
+from seatracer.analysis.models.statsmodels.rlm_analysis import RLMAnalysis
+from seatracer.analysis.models.statsmodels.wls_analysis import WLSAnalysis
+from seatracer.analysis.models.gradient_descent.gradient_descent import GradientDescentAnalysis
+from seatracer.analysis.models.machine_learning.en_analysis import ElasticNetAnalysis
 
 from seatracer.ui.sections import (
     athletes_section,
@@ -109,38 +103,67 @@ shell_class = st.sidebar.segmented_control(
     on_change=lambda: setattr(st.session_state, 'rerun', True)
 )
 
-### Models
-model_choices = ModelRegistry.get_model_choices()
+### Models - Static Selection
+AVAILABLE_MODELS = {
+    "Linear Regression": {
+        "class": OLSAnalysis,
+        "description": "Standard linear regression analysis",
+        "uses_custom_weighting": True,
+        "can_have_stern_bias": True,
+        "show_athletes": True
+    },
+    "Generalized Linear Model": {
+        "class": GLMAnalysis,
+        "description": "Robust generalized linear model analysis",
+        "uses_custom_weighting": True,
+        "can_have_stern_bias": True,
+        "show_athletes": True
+    },
+    "Robust Linear Model": {
+        "class": RLMAnalysis,
+        "description": "Robust linear regression resistant to outliers",
+        "uses_custom_weighting": True,
+        "can_have_stern_bias": True,
+        "show_athletes": True
+    },
+    "Weighted Least Squares": {
+        "class": WLSAnalysis,
+        "description": "Weighted least squares regression",
+        "uses_custom_weighting": True,
+        "can_have_stern_bias": True,
+        "show_athletes": True
+    },
+    "Gradient Descent": {
+        "class": GradientDescentAnalysis,
+        "description": "Custom gradient descent optimization",
+        "uses_custom_weighting": True,
+        "can_have_stern_bias": True,
+        "show_athletes": True
+    },
+    "Elastic Net": {
+        "class": ElasticNetAnalysis,
+        "description": "Elastic net regularized regression",
+        "uses_custom_weighting": False,
+        "can_have_stern_bias": False,
+        "show_athletes": True
+    }
+}
 
-# Fallback if no models are registered
-if not model_choices:
-    st.error("No analysis models are available. Please check the model registration.")
-    st.stop()
-
-model_display_names = [choice['label'] for choice in model_choices]
+model_names = list(AVAILABLE_MODELS.keys())
+default_model_index = model_names.index("Generalized Linear Model")  # Set GLM as default
 
 st.sidebar.divider()
 st.sidebar.subheader("Models")
 select_model = st.sidebar.radio(
-    "Model", model_display_names, index=0, label_visibility='collapsed', on_change=lambda: setattr(st.session_state, 'rerun', True)
+    "Model", model_names, index=default_model_index, label_visibility='collapsed', on_change=lambda: setattr(st.session_state, 'rerun', True)
 )
-# st.sidebar.markdown("_Models with * are not recommended_")
 
-try:
-    selected_model = ModelRegistry.get_model_class_by_name(select_model)
-except (KeyError, AttributeError) as e:
-    st.error(f"Error loading model '{select_model}': {e}")
-    # Try to get the first available model as fallback
-    if model_choices:
-        fallback_model = model_choices[0]['label']
-        st.warning(f"Falling back to {fallback_model}")
-        selected_model = ModelRegistry.get_model_class_by_name(fallback_model)
-    else:
-        st.stop()
-st.sidebar.caption(selected_model.model_description)
+selected_model_info = AVAILABLE_MODELS[select_model]
+selected_model = selected_model_info["class"]
+st.sidebar.caption(selected_model_info["description"])
 
 # Weighting
-if selected_model.uses_custom_weighting:
+if selected_model_info["uses_custom_weighting"]:
     if not st.session_state.current_data.empty:
         days_diff = (pd.to_datetime(st.session_state.current_data['Race Session (date)']).max() - pd.to_datetime(st.session_state.current_data['Race Session (date)']).min()).days
     else:
@@ -178,7 +201,7 @@ if selected_model.uses_custom_weighting:
     st.sidebar.caption(weight_close_text)
 
     # Stern Bias widget
-    if selected_model.can_have_stern_bias:
+    if selected_model_info["can_have_stern_bias"]:
         st.sidebar.markdown("### Stern Bias")
         weight_stern = st.sidebar.radio("Stern Bias", list(stern_bias_options.keys()), horizontal=False, index=0, label_visibility='collapsed', on_change=lambda: setattr(st.session_state, 'rerun', True))# maybe index=1
         weight_stern_text = stern_bias_options[weight_stern]["caption"]
@@ -216,7 +239,7 @@ else:
 
 # Conditional analysis execution
 if not st.session_state.current_data.empty:
-    if selected_model.uses_custom_weighting:
+    if selected_model_info["uses_custom_weighting"]:
         weight_close_factor = close_races_options[weight_close]["value"]
         weight_stern_factor = stern_bias_options[weight_stern]["value"]
     else:
@@ -262,7 +285,7 @@ if not st.session_state.current_data.empty:
 
 # Main UI
 show_athletes = (
-    selected_model.show_athletes
+    selected_model_info["show_athletes"]
     and 'current_data' in st.session_state
     and not st.session_state.current_data.empty
 )
