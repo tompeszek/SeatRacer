@@ -8,4 +8,6 @@ altair
 networkx
 patsy
 xgboost
+streamlit-antd-components
+plotly
 -e .
