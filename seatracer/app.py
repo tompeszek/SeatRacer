@@ -161,7 +161,7 @@ if selected_model.uses_custom_weighting:
     halflife = recency_options[recency_halflife]
     halflife_text = f"{halflife:.0f}" if halflife is not None else "Off"
     if recency_halflife != "Off":
-        st.sidebar.caption(f"_At {halflife_text}{" days, a result's weight is reduced by half" if halflife_text != 'Off' else ''}_")
+        st.sidebar.caption(f"_At {halflife_text} days, a result's weight is reduced by half_")
     else:
         st.sidebar.caption(f"_Older races are weighted the same as more recent races_")
 
