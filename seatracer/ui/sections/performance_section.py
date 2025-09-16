@@ -47,12 +47,7 @@ def render(sides_count):
     coxswain_df = dfs['coxswain']
     sculler_df = dfs['sculler']
 
-    # Check if both starboard and port are empty due to high correlation filtering
-    current_max_correlation = analysis.max_correlation if hasattr(analysis, 'max_correlation') else 0.8
-    if starboard_df.empty and port_df.empty and current_max_correlation < 1.0:
-        st.warning("No athletes available for Speed Coefficients charts due to high correlation filtering.")
-        st.info("💡 **Tip**: Increase 'Max Allowed Correlation' to 1.0 in the sidebar to show all athletes.")
-        return
+    # Note: Auto-adjustment of max_correlation is now handled in app.py
 
     if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
         col1, col2, col3 = st.columns([1, 1, 1])

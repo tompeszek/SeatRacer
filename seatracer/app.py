@@ -29,6 +29,19 @@ from seatracer.optimize.lineup_optimizer import LineupOptimizer
 from seatracer.utils.grouping import *
 from seatracer.visualization.charts import *
 
+# Force import all model modules to ensure registration
+import seatracer.analysis.models.statsmodels
+import seatracer.analysis.models.gradient_descent
+import seatracer.analysis.models.machine_learning
+import seatracer.analysis.models.trueskill
+
+# Debug: Check if models are registered
+registered_models = ModelRegistry.get_all_models()
+if not registered_models:
+    st.error("No models were registered during import. Check model registration decorators.")
+else:
+    print(f"Registered models: {list(registered_models.keys())}")
+
 from seatracer.ui.sections import (
     athletes_section,
     data_section,
@@ -97,7 +110,14 @@ shell_class = st.sidebar.segmented_control(
 )
 
 ### Models
-model_display_names = [choice['label'] for choice in ModelRegistry.get_model_choices()]
+model_choices = ModelRegistry.get_model_choices()
+
+# Fallback if no models are registered
+if not model_choices:
+    st.error("No analysis models are available. Please check the model registration.")
+    st.stop()
+
+model_display_names = [choice['label'] for choice in model_choices]
 
 st.sidebar.divider()
 st.sidebar.subheader("Models")
@@ -105,7 +125,18 @@ select_model = st.sidebar.radio(
     "Model", model_display_names, index=0, label_visibility='collapsed', on_change=lambda: setattr(st.session_state, 'rerun', True)
 )
 # st.sidebar.markdown("_Models with * are not recommended_")
-selected_model = ModelRegistry.get_model_class_by_name(select_model)
+
+try:
+    selected_model = ModelRegistry.get_model_class_by_name(select_model)
+except (KeyError, AttributeError) as e:
+    st.error(f"Error loading model '{select_model}': {e}")
+    # Try to get the first available model as fallback
+    if model_choices:
+        fallback_model = model_choices[0]['label']
+        st.warning(f"Falling back to {fallback_model}")
+        selected_model = ModelRegistry.get_model_class_by_name(fallback_model)
+    else:
+        st.stop()
 st.sidebar.caption(selected_model.model_description)
 
 # Weighting
@@ -206,7 +237,26 @@ if not st.session_state.current_data.empty:
 
     if st.session_state.rerun or 'analysis' not in st.session_state or st.session_state.analysis is None:
         st.session_state.analysis = analysis.run_analysis()
-        st.session_state.optimizer = LineupOptimizer(analysis)
+        
+        # Auto-adjust max correlation if no athletes are showing
+        athletes_df = st.session_state.analysis.final_results.get('athletes', pd.DataFrame())
+        if athletes_df.empty and max_correlation < 1.0:
+            st.warning("⚠️ No athletes available with current correlation settings. Automatically increasing Max Allowed Correlation to 1.0...")
+            # Force rerun with max_correlation = 1.0
+            analysis_with_full_correlation = selected_model(
+                df=st.session_state.current_data.copy(),                
+                max_correlation=1.0,  # Force to 1.0
+                halflife=halflife,  
+                weight_close=weight_close_factor,
+                weight_stern=weight_stern_factor,
+                include_coxswains=include_coxswains,
+                erg_scores=st.session_state.athlete_ergs_df if 'athlete_ergs_df' in st.session_state else None,
+                shell_class=shell_class,
+            )
+            st.session_state.analysis = analysis_with_full_correlation.run_analysis()
+            st.success("✅ Max Allowed Correlation automatically set to 1.0 - all athletes now visible!")
+        
+        st.session_state.optimizer = LineupOptimizer(st.session_state.analysis)
     else:
         analysis = st.session_state.analysis         
 

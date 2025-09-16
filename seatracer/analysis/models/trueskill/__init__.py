@@ -1,1 +1,1 @@
-# from seatracer.analysis.models.trueskill.trueskill2_analysis import TrueSkill2Analysis
+from seatracer.analysis.models.trueskill.trueskill2_analysis import TrueSkill2Analysis
