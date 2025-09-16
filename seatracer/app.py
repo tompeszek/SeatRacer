@@ -24,10 +24,10 @@ import pandas as pd
 import os
 
 from seatracer.analysis.analysis_base import *
-from analysis.registry import ModelRegistry
-from optimize.lineup_optimizer import LineupOptimizer
-from utils.grouping import *
-from visualization.charts import *
+from seatracer.analysis.registry import ModelRegistry
+from seatracer.optimize.lineup_optimizer import LineupOptimizer
+from seatracer.utils.grouping import *
+from seatracer.visualization.charts import *
 
 from seatracer.ui.sections import (
     athletes_section,
