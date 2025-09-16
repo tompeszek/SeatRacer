@@ -3,6 +3,7 @@ headless = true
 maxUploadSize = 200
 
 [theme]
+base = "dark"
 font = "B612"
 
 [browser]

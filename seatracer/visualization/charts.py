@@ -86,6 +86,11 @@ def generate_likelihood(row, x_vals):
 
 def generate_side_chart(col1, side_df):
     try:
+        # Check if DataFrame is empty
+        if side_df.empty or len(side_df) == 0:
+            col1.info("No data available for this side. Try increasing Max Allowed Correlation to 1.0.")
+            return
+        
         # Get the row with the smallest Speed value
         min_speed_row = side_df.loc[side_df["Speed_Adjusted"].idxmin()]
         global_x_min = min_speed_row["Lower_Adjusted"]
