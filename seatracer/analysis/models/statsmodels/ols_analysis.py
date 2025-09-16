@@ -5,7 +5,9 @@ from seatracer.analysis.registry import ModelRegistry
     key="ols", 
     name="Ordinary Least Squares",
     description="Finds rower contributions by minimizing squared differences between predicted and actual race times",
-    uses_custom_weighting=False,
+    uses_custom_weighting=True,
+    can_have_stern_bias=True,
+    show_athletes=True,
     recommended=True,
     order=3
 )

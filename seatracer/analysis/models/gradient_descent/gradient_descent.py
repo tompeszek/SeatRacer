@@ -13,48 +13,116 @@ class GradientDescentResults:
         self._X = X
         self._y = y
         
-        # Calculate confidence intervals from parameter history
-        if param_history:
-            param_history_array = np.array(param_history)
-            # Handle any NaN values that might cause warnings
-            param_history_array = np.nan_to_num(param_history_array, nan=0.0)
-            self._param_min = np.min(param_history_array, axis=0)
-            self._param_max = np.max(param_history_array, axis=0)
-        else:
-            # Fallback if we don't have history
-            self._param_min = params - abs(params) * 0.2
-            self._param_max = params + abs(params) * 0.2
-        
-        # Ensure no identical min/max that could cause division by zero elsewhere
-        epsilon = 1e-6
-        identical_indices = np.isclose(self._param_min, self._param_max, atol=epsilon)
-        if np.any(identical_indices):
-            self._param_min[identical_indices] -= epsilon
-            self._param_max[identical_indices] += epsilon
+        # Calculate Hessian-based confidence intervals
+        self._calculate_hessian_confidence_intervals()
     
     def predict(self, X):
         return X.dot(self.params)
     
-    def conf_int(self, alpha=0.05):
-        # Replace any potential infinity or NaN values
-        lower = pd.Series(np.nan_to_num(self._param_min, nan=0.0, posinf=1e5, neginf=-1e5), index=self._X.columns)
-        upper = pd.Series(np.nan_to_num(self._param_max, nan=0.0, posinf=1e5, neginf=-1e5), index=self._X.columns)
+    def _calculate_hessian_confidence_intervals(self, alpha=0.05):
+        """Calculate confidence intervals using numerical Hessian approximation"""
+        try:
+            # Define loss function for Hessian computation
+            def loss_function(params):
+                predictions = self._X.values.dot(params)
+                errors = predictions - self._y.values
+                # Use smoothed L1 loss for better Hessian properties
+                return np.mean(np.sqrt(errors**2 + 1e-8))  # Huber-like loss
+            
+            # Compute numerical Hessian using finite differences
+            hessian = self._compute_numerical_hessian(loss_function, self.params.values)
+            
+            # Calculate standard errors from Hessian
+            try:
+                # Add regularization to improve conditioning
+                reg_hessian = hessian + np.eye(len(hessian)) * 1e-6
+                cov_matrix = np.linalg.inv(reg_hessian)
+                std_errors = np.sqrt(np.abs(np.diag(cov_matrix)))  # abs for numerical stability
+                
+                # Calculate confidence intervals using t-distribution
+                from scipy.stats import t
+                dof = max(1, len(self._y) - len(self.params))  # degrees of freedom
+                t_critical = t.ppf(1 - alpha/2, dof)
+                
+                margin_of_error = t_critical * std_errors
+                self._param_lower = self.params.values - margin_of_error
+                self._param_upper = self.params.values + margin_of_error
+                
+            except np.linalg.LinAlgError:
+                # Hessian is singular, fall back to simpler approach
+                print("Warning: Singular Hessian matrix, using simplified confidence intervals")
+                self._fallback_confidence_intervals()
+                
+        except Exception as e:
+            print(f"Warning: Hessian calculation failed ({e}), using fallback confidence intervals")
+            self._fallback_confidence_intervals()
+    
+    def _compute_numerical_hessian(self, func, params, h=1e-6):
+        """Compute numerical Hessian using finite differences"""
+        n = len(params)
+        hessian = np.zeros((n, n))
         
-        # Ensure bounds are finite and well-behaved
-        for col in lower.index:
-            if not np.isfinite(lower[col]) or not np.isfinite(upper[col]):
-                lower[col] = self.params[col] - abs(self.params[col]) * 0.2
-                upper[col] = self.params[col] + abs(self.params[col]) * 0.2
+        for i in range(n):
+            # Diagonal elements: second derivative
+            params_plus = params.copy()
+            params_minus = params.copy()
+            params_plus[i] += h
+            params_minus[i] -= h
             
-            # Ensure lower is actually lower than upper
-            if lower[col] > upper[col]:
-                lower[col], upper[col] = upper[col], lower[col]
+            hessian[i, i] = (func(params_plus) - 2*func(params) + func(params_minus)) / (h**2)
             
-            # If they're still identical, add a small separation
-            if np.isclose(lower[col], upper[col]):
-                epsilon = max(1e-6, abs(lower[col] * 0.01))
-                lower[col] -= epsilon
-                upper[col] += epsilon
+            # Off-diagonal elements: mixed partial derivatives
+            for j in range(i+1, n):
+                params_pp = params.copy()
+                params_pm = params.copy()
+                params_mp = params.copy()
+                params_mm = params.copy()
+                
+                params_pp[i] += h
+                params_pp[j] += h
+                params_pm[i] += h
+                params_pm[j] -= h
+                params_mp[i] -= h
+                params_mp[j] += h
+                params_mm[i] -= h
+                params_mm[j] -= h
+                
+                mixed_deriv = (func(params_pp) - func(params_pm) - func(params_mp) + func(params_mm)) / (4 * h**2)
+                hessian[i, j] = mixed_deriv
+                hessian[j, i] = mixed_deriv  # Hessian is symmetric
+        
+        return hessian
+    
+    def _fallback_confidence_intervals(self):
+        """Fallback confidence intervals when Hessian fails"""
+        # Use residual-based standard error estimation
+        predictions = self._X.values.dot(self.params.values)
+        residuals = self._y.values - predictions
+        mse = np.mean(residuals**2)
+        
+        # Simple diagonal approximation for standard errors
+        XtX = self._X.T.dot(self._X)
+        try:
+            XtX_inv = np.linalg.inv(XtX + np.eye(len(XtX)) * 1e-6)  # regularized
+            var_estimates = mse * np.diag(XtX_inv)
+            std_errors = np.sqrt(np.abs(var_estimates))  # abs to handle any numerical issues
+        except np.linalg.LinAlgError:
+            # Even simpler fallback
+            std_errors = np.abs(self.params.values) * 0.15  # 15% of parameter value
+        
+        # 95% confidence intervals (approximate)
+        margin_of_error = 1.96 * std_errors
+        self._param_lower = self.params.values - margin_of_error
+        self._param_upper = self.params.values + margin_of_error
+    
+    def conf_int(self, alpha=0.05):
+        """Return confidence intervals as DataFrame matching statsmodels format"""
+        if alpha != 0.05:
+            # Recalculate for different alpha level
+            self._calculate_hessian_confidence_intervals(alpha)
+        
+        lower = pd.Series(self._param_lower, index=self._X.columns)
+        upper = pd.Series(self._param_upper, index=self._X.columns)
         
         return pd.DataFrame({0: lower, 1: upper})
 

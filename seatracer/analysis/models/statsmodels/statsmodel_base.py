@@ -68,7 +68,11 @@ class StatsModelAnalysis(Analysis):
             case 'wls':
                 model = sm.WLS(y, X, weights=weights)       
             case 'ols':
-                model = sm.OLS(y, X)
+                # Use WLS when weights are provided, otherwise standard OLS
+                if weights is not None and not np.allclose(weights, 1.0):
+                    model = sm.WLS(y, X, weights=weights)
+                else:
+                    model = sm.OLS(y, X)
             case 'glm':            
                 model = sm.GLM(y, X, family=sm.families.Gaussian(), freq_weights=weights)
             case _:
