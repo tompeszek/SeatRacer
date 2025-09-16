@@ -104,7 +104,7 @@ shell_class = st.sidebar.segmented_control(
 )
 
 ### Models - Static Selection
-AVAILABLE_MODELS = {
+ALL_MODELS = {
     "Linear Regression": {
         "class": OLSAnalysis,
         "description": "Standard linear regression analysis",
@@ -148,6 +148,10 @@ AVAILABLE_MODELS = {
         "show_athletes": True
     }
 }
+
+# Only show these three models in UI
+VISIBLE_MODELS = ["Gradient Descent", "Generalized Linear Model", "Linear Regression"]
+AVAILABLE_MODELS = {name: ALL_MODELS[name] for name in VISIBLE_MODELS}
 
 model_names = list(AVAILABLE_MODELS.keys())
 default_model_index = model_names.index("Generalized Linear Model")  # Set GLM as default
