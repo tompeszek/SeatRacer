@@ -241,8 +241,7 @@ if not st.session_state.current_data.empty:
         # Auto-adjust max correlation if no athletes are showing
         athletes_df = st.session_state.analysis.final_results.get('athletes', pd.DataFrame())
         if athletes_df.empty and max_correlation < 1.0:
-            st.warning("⚠️ No athletes available with current correlation settings. Automatically increasing Max Allowed Correlation to 1.0...")
-            # Force rerun with max_correlation = 1.0
+            # Silently force rerun with max_correlation = 1.0
             analysis_with_full_correlation = selected_model(
                 df=st.session_state.current_data.copy(),                
                 max_correlation=1.0,  # Force to 1.0
@@ -254,7 +253,8 @@ if not st.session_state.current_data.empty:
                 shell_class=shell_class,
             )
             st.session_state.analysis = analysis_with_full_correlation.run_analysis()
-            st.success("✅ Max Allowed Correlation automatically set to 1.0 - all athletes now visible!")
+            # Store flag for Performance tab to show subtle note
+            st.session_state.correlation_auto_adjusted = True
         
         st.session_state.optimizer = LineupOptimizer(st.session_state.analysis)
     else:

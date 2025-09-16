@@ -18,6 +18,12 @@ def render(sides_count):
     scullers = [rower for rower, sides in sides_count.items() if sides['Scull'] > 0]
 
     st.subheader("Speed Coefficients")
+    
+    # Show subtle note if correlation was auto-adjusted
+    if hasattr(st.session_state, 'correlation_auto_adjusted') and st.session_state.correlation_auto_adjusted:
+        st.caption("_Note: Max correlation automatically adjusted to show all athletes_")
+        st.session_state.correlation_auto_adjusted = False  # Reset flag
+    
     coefficient_boat_classes = ["8+", "4x/-", "2x/-", "1x"]
     coefficient_race_distances = [500, 1000, 1500, 2000, 4000, 6000]
     selected_boat_class = st.radio("Boat Class:", coefficient_boat_classes, index=1, horizontal=True, key="boat_class")
