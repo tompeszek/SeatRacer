@@ -97,9 +97,9 @@ for key, default_value in default_session_values.items():
 st.sidebar.subheader("Data Filters")
 shell_class = st.sidebar.segmented_control(
     'Include Shell Classes', 
-    options=['2-', '4-', '4+', '8+'],
+    options=['1x', '2-', '4-', '4+', '8+'],
     selection_mode='multi',
-    default=['2-', '4-', '4+', '8+'],
+    default=['1x', '2-', '4-', '4+', '8+'],
     on_change=lambda: setattr(st.session_state, 'rerun', True)
 )
 

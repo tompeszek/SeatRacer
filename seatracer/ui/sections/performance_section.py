@@ -140,20 +140,36 @@ def render(sides_count):
     
     st.subheader("Confidence Intervals")
     if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
-        bars_chart_starboard, bars_chart_port, bars_chart_cox = st.columns([1, 1, 1])
+        if len(sculler_df) > 0:
+            bars_chart_starboard, bars_chart_port, bars_chart_cox, bars_chart_scullers = st.columns([1, 1, 1, 1])
+        else:
+            bars_chart_starboard, bars_chart_port, bars_chart_cox = st.columns([1, 1, 1])
     else:
-        bars_chart_starboard, bars_chart_port = st.columns([1, 1])
-    with bars_chart_starboard:
-        st.write("Starboard")
-        starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
-        starboard_bar_chart = generate_confidence_bars_with_gradient(starboard_df, starboard_confidence)
-        st.altair_chart(starboard_bar_chart, use_container_width=True)       
+        if len(sculler_df) > 0:
+            bars_chart_starboard, bars_chart_port, bars_chart_scullers = st.columns([1, 1, 1])
+        else:
+            bars_chart_starboard, bars_chart_port = st.columns([1, 1])        
     
-    with bars_chart_port:
-        st.write("Port")            
-        port_confidence = st.slider("Confidence", key="port_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
-        port_bar_chart = generate_confidence_bars_with_gradient(port_df, port_confidence)
-        st.altair_chart(port_bar_chart, use_container_width=True)
+    if len(starboard_df) > 0:
+        with bars_chart_starboard:
+            st.write("Starboard")
+            starboard_confidence = st.slider("Confidence", key="starboard_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
+            starboard_bar_chart = generate_confidence_bars_with_gradient(starboard_df, starboard_confidence)
+            st.altair_chart(starboard_bar_chart, use_container_width=True)       
+    
+    if len(port_df) > 0:
+        with bars_chart_port:
+            st.write("Port")            
+            port_confidence = st.slider("Confidence", key="port_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
+            port_bar_chart = generate_confidence_bars_with_gradient(port_df, port_confidence)
+            st.altair_chart(port_bar_chart, use_container_width=True)
+
+    if len(sculler_df) > 0:
+        with bars_chart_scullers:
+            st.write("Scull")            
+            scullers_confidence = st.slider("Confidence", key="scullers_confidence", min_value=0, max_value=99, value=50, step=1, format="%d%%")
+            scullers_bar_chart = generate_confidence_bars_with_gradient(sculler_df, scullers_confidence)
+            st.altair_chart(scullers_bar_chart, use_container_width=True)
 
     if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
         with bars_chart_cox:
@@ -165,9 +181,16 @@ def render(sides_count):
     st.subheader("One-on-One Probabilities")
     st.write("_Probability of the rower in the first column outperforming the rowers listed in the first row_")
     if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
-        col3, col4, col5 = st.columns([1, 1, 1])
+        if len(sculler_df) > 1:
+            col3, col4, col_scull, col5  = st.columns([1, 1, 1, 1])
+        else:
+            col3, col4, col5 = st.columns([1, 1, 1])
     else:
-        col3, col4 = st.columns([1, 1])
+        if len(sculler_df) > 1:
+            col3, col4, col_scull = st.columns([1, 1, 1])
+        else:
+            col3, col4 = st.columns([1, 1])
+
     prob_matrix = compute_probability_matrix(starboard_df).sort_index()
     prob_matrix = prob_matrix[sorted(prob_matrix.columns)]
     col3.write("Starboard")
@@ -178,11 +201,18 @@ def render(sides_count):
     col4.write("Port")
     col4.dataframe(prob_matrix)
 
+    if len(sculler_df) > 0:
+        prob_matrix = compute_probability_matrix(sculler_df).sort_index()
+        prob_matrix = prob_matrix[sorted(prob_matrix.columns)]
+        col_scull.write("Scull")
+        col_scull.dataframe(prob_matrix)
+
     if st.session_state['include_coxswains'] and len(coxswain_df) > 1:
         prob_matrix = compute_probability_matrix(coxswain_df).sort_index()
         prob_matrix = prob_matrix[sorted(prob_matrix.columns)]
         col5.write("Coxswains")
-        col5.dataframe(prob_matrix)
+        col5.dataframe(prob_matrix)   
+    
 
 def standardize_speed(speed, boat_class, meters):
     number_of_rowers = int(boat_class[0])
