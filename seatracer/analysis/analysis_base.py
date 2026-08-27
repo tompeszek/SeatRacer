@@ -6,7 +6,6 @@ from scipy import stats
 from typing import Dict, List, Optional, Any
 from seatracer.utils.helpers import add_athlete_counts, append_rigging_to_names, determine_shell_class, get_rower_sides_count, time_to_seconds, seconds_to_time, calculate_closest_margin
 from seatracer.utils.grouping import group_highly_correlated_parameters
-import streamlit as st
 
 @dataclass
 class Analysis(ABC):
@@ -17,10 +16,15 @@ class Analysis(ABC):
     weight_close: float = None
     weight_stern: float = None
     include_coxswains: bool = False
-    seat_breakdown: bool = True  
+    seat_breakdown: bool = True
     lookback: int = 10000
     erg_scores: object = None
     shell_class: object = None
+    # When True, _run_regression returns only athlete/shell coefficients and skips
+    # the expensive comparison / pairs / fitted / correlation outputs. Used by the
+    # leave-one-out analysis, which refits the model many times but only needs each
+    # athlete's coefficient. Default False keeps full behaviour everywhere else.
+    light: bool = False
     
     def __post_init__(self):
         self.df = self.df.copy().sort_values(by=['Race Session (date)', 'Piece'])
@@ -35,6 +39,11 @@ class Analysis(ABC):
             'all_athletes': set(),
             'results_by_date': {}
         }
+
+        # Side counts (Starboard/Port/Scull/Coxswain per athlete). Populated below
+        # once the dataframe has been prepared; kept on the instance so the engine
+        # has no dependency on any web-framework session state.
+        self.sides_count = {}
 
         add_athlete_counts(self.df)
 
@@ -53,7 +62,7 @@ class Analysis(ABC):
             self.df['Piece'] = self.df['Race Session (date)'].astype(str) + " #" + self.df['Piece'].astype(str)            
 
             # Sides count
-            st.session_state.sides_count = get_rower_sides_count(self.df)
+            self.sides_count = get_rower_sides_count(self.df)
 
     def run_analysis(self, get_history=False, by_piece=False):
         """

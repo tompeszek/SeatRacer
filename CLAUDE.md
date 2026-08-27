@@ -4,25 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Application Overview
 
-SeatRacer is a Streamlit-based rowing lineup analysis and optimization tool. The application analyzes seat racing data to evaluate athlete performance, predict optimal lineups, and provide statistical insights for rowing teams.
+SeatRacer is a rowing lineup analysis and optimization tool. It analyzes seat
+racing data to evaluate athlete performance, predict lineups, and provide
+statistical insights for rowing teams.
+
+The UI is built with **NiceGUI** (`seatracer/ng/`, entrypoint `main.py`). It was
+migrated from an earlier Streamlit UI, which has been removed (recoverable from
+git history if ever needed). See `README.md` for the architecture overview and
+`DEPLOYMENT.md` for Railway notes.
 
 ## Running the Application
 
 ### Primary Command
 ```bash
-streamlit run seatracer/app.py
+python main.py
 ```
 
-The app will be available at http://localhost:8501 by default.
-
-### Development with Debugging
-The app includes debugpy configuration for VS Code debugging on port 5678. The debugger will wait for attachment on startup.
+The app is available at http://localhost:8088 (binds `0.0.0.0`, reads `$PORT`).
 
 ### Installation
 ```bash
-pip install -e .
-# or
-pip install -r seatracer/requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Architecture
@@ -44,18 +46,18 @@ pip install -r seatracer/requirements.txt
 - `lineup_optimizer.py` - Primary lineup optimization using analysis results
 - `lineup_optimizer2.py` - Alternative optimization implementation
 
-**User Interface (`seatracer/ui/sections/`)**
-- Modular UI sections for different analysis views (athletes, performance, correlations, etc.)
-- Each section is a separate module for maintainability
+**User Interface (`seatracer/ng/`)**
+- `app.py` - Dashboard: sidebar controls + tabs + `recompute()` pipeline
+- `state.py` - `AppState` per-client session state
+- `ui_common.py` - AG Grid / ECharts builders, probability-matrix and confidence maths
+- `temporal_plot.py` - Plotly builder for the Over Time tab
+- `loo_worker.py` - ProcessPoolExecutor worker for leave-one-out refits
+- `tabs/` - one module per tab (Data, Performance, Individual, ...)
 
 **Utilities (`seatracer/utils/`)**
 - `data_handler.py` - Data loading and processing
 - `grouping.py` - Athlete correlation and grouping logic  
 - `helpers.py` - Utility functions for time conversion, shell classification
-
-**Visualization (`seatracer/visualization/`)**
-- `charts.py` - Chart generation for analysis results
-- `temporal_visualization.py` - Time-series visualization
 
 ### Model Registry System
 
@@ -79,7 +81,7 @@ class OLSAnalysis(StatsModelBase):
 
 ### Data Flow
 
-1. **Data Loading**: CSV files with seat racing results loaded via `data_section.py`
+1. **Data Loading**: CSV files with seat racing results loaded via the Data tab (`seatracer/ng/tabs/data_tab.py`)
 2. **Analysis**: Selected model processes data with user-configured parameters
 3. **Optimization**: `LineupOptimizer` uses analysis results to find optimal lineups
 4. **Visualization**: Results displayed across multiple UI tabs
@@ -92,9 +94,6 @@ class OLSAnalysis(StatsModelBase):
 
 ## Configuration
 
-### Streamlit Config
-- `seatracer/_config.toml` - Sets B612 font for UI consistency
-
 ### Model Parameters
 Models support various weighting options:
 - **Recency weighting** - Recent races weighted more heavily
@@ -104,9 +103,8 @@ Models support various weighting options:
 
 ## Development Notes
 
-- The app uses Streamlit's session state extensively for persistence
+- Per-client UI state lives in `seatracer/ng/state.py` (`AppState`); the engine is framework-agnostic and must not import any UI library
 - Hot-reloading friendly model registry design
-- Debugpy integration for development debugging
-- Modular UI design allows independent section development
+- Modular tab design allows independent development of each view
 - All analysis models inherit from `Analysis` base class
 - Data preprocessing includes shell class filtering and rigging assignment

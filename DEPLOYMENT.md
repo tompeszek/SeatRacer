@@ -1,97 +1,61 @@
 # SeatRacer Railway Deployment Guide
 
-## Quick Deploy to Railway
+The app is a NiceGUI (FastAPI/uvicorn) web app. It runs as a single process and
+deploys on Railway with no extra configuration.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template)
+## Deploy to Railway
 
-## Manual Deployment
+1. **Connect the repository**
+   - Railway → "New Project" → "Deploy from GitHub repo" → select this repo.
+2. **Configuration is automatic**
+   - `railway.toml` (nixpacks builder) + `Procfile` define the start command
+     `python main.py`.
+   - `requirements.txt` lists the Python dependencies.
+   - `runtime.txt` pins the Python version.
+   - `main.py` binds `0.0.0.0` and reads `$PORT`; Railway provides `$PORT`.
+3. **Optional env vars**
+   - `STORAGE_SECRET` – secret used to sign per-client storage (recommended in
+     production). Defaults to a local dev value if unset.
 
-1. **Connect Repository to Railway**
-   - Go to [Railway](https://railway.app)
-   - Click "New Project" → "Deploy from GitHub repo"
-   - Select this repository
+## Using the deployed app
 
-2. **Environment Configuration**
-   - Railway will automatically detect the `railway.toml` configuration
-   - The app will be deployed with the correct start command
-   - No additional environment variables needed
+1. Open the deployed URL.
+2. On the **Data** tab, load an example dataset or upload your own CSV
+   (max ~100 MB; the in-browser uploader streams the file to the server).
+3. The analysis tabs populate automatically once data is loaded. Adjust the model
+   and weights in the sidebar — each change re-fits the model once and refreshes
+   the visible tab.
 
-3. **Deployment Files Included**
-   - `railway.toml` - Railway configuration
-   - `Procfile` - Process definition for Railway
-   - `requirements.txt` - Python dependencies
-   - `runtime.txt` - Python version specification
-   - `.streamlit/config.toml` - Streamlit configuration
+## CSV format
 
-## Using the Deployed App
+The racing CSV needs these columns:
 
-### CSV Data Upload
-- The deployed app supports CSV file upload through the web interface
-- Navigate to the "Data" tab
-- Use "Upload Racing Data" section to upload your CSV files
-- Maximum file size: 200MB
-
-### Example Data
-- If example datasets are included in the deployment, they will appear in the "Load Example Datasets" section
-- If no example data is available, users can upload their own CSV files
-
-## Local Development vs Production
-
-### Local Development
-- Includes debugpy for VS Code debugging (on port 5678)
-- Debug setup is automatically disabled in Railway production environment
-
-### Production (Railway)
-- Debuggy is disabled for production
-- CORS and XSRF protection are disabled for Streamlit functionality
-- Headless mode enabled for server deployment
-
-## Configuration Details
-
-### Streamlit Configuration
-```toml
-[server]
-headless = true
-enableCORS = false
-enableXsrfProtection = false
-maxUploadSize = 200
-
-[theme]
-font = "B612"
+```
+Race Session (date), Piece, KM, Rigging, Personnel, Result
 ```
 
-### Railway Configuration
-```toml
-[build]
-builder = "nixpacks"
+- `Rigging` uses per-seat codes joined by `/` (e.g. `c/p/s/p/s/p/s/p/s` for an 8+).
+- `Personnel` lists athlete names in the same order, joined by `/`.
+- `Result` is the time as `MM:SS` or `MM:SS.s`.
 
-[deploy]
-startCommand = "streamlit run seatracer/app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false"
+See the example files in `seatracer/data/` for the exact format. Erg files
+(`seatracer/erg_data/`) use `Athlete, 2k Erg` with erg times as `m:ss.s`.
+
+## Local development
+
+```bash
+cd lit_seatracer
+pip install -r requirements.txt
+python main.py        # http://localhost:8088
 ```
+
+For live-reload during development, you can run NiceGUI with reload enabled by
+temporarily setting `reload=True` in `main.py`'s `ui.run(...)` call.
 
 ## Troubleshooting
 
-### Build Issues
-- Ensure all dependencies are listed in `requirements.txt`
-- Check Python version in `runtime.txt` is supported by Railway
-
-### Runtime Issues
-- Check Railway logs for error messages
-- Verify CSV file format matches expected structure
-- Ensure uploaded files are valid CSV format
-
-### Memory Issues
-- Railway provides 512MB RAM by default
-- Large datasets may require upgrading Railway plan
-- Consider data preprocessing for very large files
-
-## CSV File Format Requirements
-
-Your CSV file should include columns for:
-- Athlete names/IDs
-- Race results/times
-- Boat configurations
-- Race dates/sessions
-- Other performance metrics as required by the analysis models
-
-Refer to example datasets (if available) for the expected format.
+- **Build fails** – ensure all imports are covered by `requirements.txt`.
+- **App starts but is blank** – check Railway logs; the engine logs benign
+  statsmodels `RuntimeWarning`/`PerfectSeparationWarning` lines for small datasets,
+  which are expected and not errors.
+- **Port issues** – the app must read `$PORT`; this is already handled in `main.py`.

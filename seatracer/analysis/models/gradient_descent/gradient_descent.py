@@ -229,15 +229,23 @@ class GradientDescentAnalysis(Analysis):
         # Create a GradientDescentWithOLS results object that combines both
         results = GradientDescentWithOLS(gd_results, ols_results)
 
+        # Generate athlete + shell statistics (always needed)
+        athletes_df, dropped_athletes_df = self._create_athlete_stats(results, athletes, X, self.max_correlation)
+        shell_classes_df = self._create_shell_class_stats(results, shell_classes)
+
+        # Light mode: skip the expensive comparison/pairs/fitted/correlation outputs.
+        if getattr(self, "light", False):
+            return {
+                "results": results,
+                "athletes": athletes_df,
+                "dropped_athletes": dropped_athletes_df,
+                "shell_classes": shell_classes_df,
+                "raw": df,
+            }
+
         # Generate comparison dataframe
         comparison_df = self._create_comparison_df(df, y, results, X)
-        
-        # Generate athlete statistics
-        athletes_df, dropped_athletes_df = self._create_athlete_stats(results, athletes, X, self.max_correlation)
-        
-        # Generate shell class statistics
-        shell_classes_df = self._create_shell_class_stats(results, shell_classes)
-        
+
         # Generate other factors statistics
         other_factors_df = self._create_other_factors_stats(results, X, athletes)
         

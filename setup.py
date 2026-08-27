@@ -5,15 +5,18 @@ setup(
     version="0.1.0",
     packages=find_packages(),
     package_data={
-        'seatracer': ['data/*'],
+        'seatracer': ['data/*', 'erg_data/*'],
     },
     install_requires=[
+        "nicegui",
+        "plotly",
         "pandas",
         "numpy",
         "statsmodels",
         "scipy",
-        "streamlit",
-        # Add other dependencies
+        "scikit-learn",
+        "networkx",
+        "patsy",
     ],
     author="Your Name",
     description="Rowing lineup and seat racing analysis tool",

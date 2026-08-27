@@ -1,15 +1,18 @@
-import streamlit as st
 from typing import Dict, List, Type, Any, Optional
 
 class ModelRegistry:
-    """Registry for analysis model types with improved persistence for hot-reloading."""
-    
+    """Registry for analysis model types.
+
+    Models are stored in a plain module-level dict so the engine can be imported
+    and used outside of any Streamlit runtime (e.g. the NiceGUI frontend).
+    """
+
+    _models: Dict[str, Any] = {}
+
     @classmethod
     def _get_models(cls):
-        """Get models from session state or initialize if needed"""
-        if "registered_models" not in st.session_state:
-            st.session_state.registered_models = {}
-        return st.session_state.registered_models
+        """Get the process-wide registry of models."""
+        return cls._models
     
     @classmethod
     def register(

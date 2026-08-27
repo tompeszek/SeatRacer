@@ -1,13 +1,9 @@
-streamlit
+nicegui
+plotly
 pandas
 numpy
 scipy
 scikit-learn
 statsmodels
-altair
 networkx
 patsy
-xgboost
-streamlit-antd-components
-plotly
--e .

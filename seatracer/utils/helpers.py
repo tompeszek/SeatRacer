@@ -1,5 +1,5 @@
 # helpers.py
-import streamlit as st
+import warnings
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -197,7 +197,7 @@ def append_rigging_to_names(df):
         # Handle Coxswain if rigging has one extra entry
         if len(rigging_list) - 1 == len(personnel_list):
             if len(rigging_list) % 2 == 0:
-                st.warning(f"Conflict between rigging configuration and personnel list: {row}")
+                warnings.warn(f"Conflict between rigging configuration and personnel list: {row}")
             personnel_list.insert(0, 'Cox')
             df.at[row.name, 'Personnel'] = 'Cox/' + row['Personnel']  # Update DataFrame
 
