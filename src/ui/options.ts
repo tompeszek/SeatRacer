@@ -45,6 +45,7 @@ export const STRENGTH_OPTIONS: Record<string, { value: number; caption: string }
 export const BUNDLED_DATASETS = [
   'Olympic Selection - 2012.csv',
   'Olympic Selection - 2021.csv',
+  'USNT 2018-2021.csv',
   'SDRC HOCR 2025 rate adjusted.csv',
   'SDRC HOCR 2025 raw.csv',
   'SDRC Masters Men HOCR Selection - 2024.csv',
