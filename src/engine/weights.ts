@@ -70,24 +70,28 @@ export function applyWeights(rows: PreppedRow[], settings: WeightSettings): void
  * Fractions are stored for every seat (including coxswains); the design
  * matrix later includes only the selected athletes' columns.
  */
+/** Seat fractions for one boat: even 1/n, or stern-biased linear split. */
+export function boatFractions(boat: string[], stern: number | null): Map<string, number> {
+  const n = boat.length
+  const out = new Map<string, number>()
+  if (stern != null && stern !== 0 && n > 1) {
+    const base = 1 / n
+    const adjustment = base * stern
+    const weights = boat.map((_, pos) => {
+      const relative = (n - 1 - pos) / Math.max(1, n - 1)
+      return base + relative * adjustment - adjustment / 2
+    })
+    const total = weights.reduce((a, b) => a + b, 0)
+    boat.forEach((name, i) => out.set(name, weights[i] / total))
+  } else {
+    const w = n > 0 ? 1 / n : 0
+    for (const name of boat) out.set(name, w)
+  }
+  return out
+}
+
 export function athleteFractions(rows: PreppedRow[], settings: WeightSettings): void {
-  const stern = settings.weightStern
   for (const row of rows) {
-    const boat = row.personnel
-    const n = boat.length
-    row.athleteFractions = new Map()
-    if (stern != null && stern !== 0 && n > 1) {
-      const base = 1 / n
-      const adjustment = base * stern
-      const weights = boat.map((_, pos) => {
-        const relative = (n - 1 - pos) / Math.max(1, n - 1)
-        return base + relative * adjustment - adjustment / 2
-      })
-      const total = weights.reduce((a, b) => a + b, 0)
-      boat.forEach((name, i) => row.athleteFractions.set(name, weights[i] / total))
-    } else {
-      const w = n > 0 ? 1 / n : 0
-      for (const name of boat) row.athleteFractions.set(name, w)
-    }
+    row.athleteFractions = boatFractions(row.personnel, settings.weightStern)
   }
 }
