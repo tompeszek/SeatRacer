@@ -118,19 +118,19 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 12/19/2018,4,2,p/s,Messner/Davis,07:44.0
 12/19/2018,4,2,p/s,Landboe/Richards,07:11.0
 12/19/2018,4,2,p/s,Stoep/Furey,07:34.0
-12/19/2018,4,2,s/s,Chance/MB,08:02.0
+12/19/2018,4,2,p/s,MB/Chance,08:02.0
 12/19/2018,5,2,p/s,Wallis/Harrity,07:00.0
 12/19/2018,5,2,p/s,Messner/Davis,07:50.0
 12/19/2018,5,2,p/s,Landboe/Richards,07:06.0
 12/19/2018,5,2,p/s,Stoep/Furey,07:28.0
-12/19/2018,5,2,s/s,Chance/MB,07:54.0
+12/19/2018,5,2,p/s,MB/Chance,07:54.0
 12/19/2018,5,2,p/s,Moffitt/Clougher,07:00.0
 12/19/2018,6,2,p/s,Moffitt/Clougher,07:00.0
 12/19/2018,6,2,p/s,Wallis/Harrity,07:05.0
 12/19/2018,6,2,p/s,Messner/Davis,07:45.0
 12/19/2018,6,2,p/s,Landboe/Richards,07:07.0
 12/19/2018,6,2,p/s,Stoep/Furey,07:32.0
-12/19/2018,6,2,s/s,Chance/MB,07:53.0
+12/19/2018,6,2,p/s,MB/Chance,07:53.0
 1/18/2019,1,2,p/s,Mead/Karwoski,07:00.0
 1/18/2019,1,2,p/s,DiSanto/Harrity,07:11.0
 1/18/2019,1,2,p/s,Ochal/Clougher,07:23.0
@@ -377,12 +377,12 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 5/4/2019,3,2,p/s/p/s,Eble/Carlson/Moffitt/Richards,06:41.0
 5/4/2019,3,2,p/s/p/s,DiSanto/Peszek/Mead/Reed,06:20.0
 5/4/2019,3,2,p/s/p/s,Dethlefs/Harrity/Hack/Karwoski,06:21.0
-5/4/2019,4,2,s/s,Clougher/MB,07:00.0
+5/4/2019,4,2,p/s,Clougher/MB,07:00.0
 5/4/2019,4,2,p/s,Landboe/Furey,07:11.0
 5/4/2019,5,2,p/s,Landboe/Furey,07:00.0
-5/4/2019,5,2,s/s,Clougher/MB,07:13.0
+5/4/2019,5,2,p/s,Clougher/MB,07:13.0
 5/4/2019,6,2,p/s,Landboe/Furey,07:00.0
-5/4/2019,6,2,s/s,Clougher/MB,07:04.0
+5/4/2019,6,2,p/s,Clougher/MB,07:04.0
 5/9/2019,1,2,p/s/p/s,Hack/Karwoski/Mead/Peszek,06:20.0
 5/9/2019,1,2,p/s/p/s,Dethlefs/Harrity/DiSanto/Reed,06:21.0
 5/9/2019,2,2,p/s/p/s,Dethlefs/Harrity/DiSanto/Reed,06:20.0
@@ -525,24 +525,24 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 10/10/2019,1,2,p/s/p/s/p/s/p/s,Corrigan/C Carlson/Dean/Davison/Dethlefs/Grady/Weiss/Miklasevich,05:41.0
 10/10/2019,2,2,p/s/p/s/p/s/p/s,DiSanto/Harrity/Eble/Karwoski/Hack/Reed/Mead/Richards,05:30.0
 10/10/2019,2,2,p/s/p/s/p/s/p/s,Corrigan/C Carlson/Dean/Davison/Dethlefs/Grady/Weiss/Miklasevich,05:41.0
-10/10/2019,3,2,p/s/s/s,Moffitt/Clougher/Furey/Peszek,06:20.0
+10/10/2019,3,2,p/s/p/s,Clougher/Furey/Moffitt/Peszek,06:20.0
 10/10/2019,3,2,p/s/p/s,Landboe/E Carlson/Wallis/Flagg,06:31.0
-10/10/2019,4,2,p/s/s/s,Moffitt/Clougher/Furey/Peszek,06:20.0
+10/10/2019,4,2,p/s/p/s,Clougher/Furey/Moffitt/Peszek,06:20.0
 10/10/2019,4,2,p/s/p/s,Landboe/E Carlson/Wallis/Flagg,06:37.0
 10/16/2019,1,2,p/s/p/s/p/s/p/s,DiSanto/Harrity/Eble/Karwoski/Hack/Reed/Mead/Richards,05:30.0
 10/16/2019,1,2,p/s/p/s/p/s/p/s,Corrigan/Carlson/Dean/Davison/Dethlefs/Grady/Weiss/Miklasevich,05:40.0
 10/16/2019,2,2,p/s/p/s/p/s/p/s,DiSanto/Harrity/Eble/Karwoski/Hack/Reed/Mead/Richards,05:30.0
 10/16/2019,2,2,p/s/p/s/p/s/p/s,Corrigan/Carlson/Dean/Davison/Dethlefs/Grady/Weiss/Miklasevich,05:38.0
 10/24/2019,1,2,p/s/p/s,DiSanto/Karwoski/Hack/Reed,06:20.0
-10/24/2019,1,2,p/s/s/s,Moffitt/Furey/Molitor/Peszek,06:43.0
+10/24/2019,1,2,p/s/p/s,Furey/Molitor/Moffitt/Peszek,06:43.0
 10/24/2019,1,2,p/s/p/s,Eble/Harrity/Mead/Richards,06:42.0
 10/24/2019,1,2,p/s/p/s,Dean/C Carlson/Dethlefs/Davison,06:55.0
 10/24/2019,2,2,p/s/p/s,DiSanto/Karwoski/Hack/Reed,06:20.0
-10/24/2019,2,2,p/s/s/s,Moffitt/Furey/Molitor/Peszek,06:28.0
+10/24/2019,2,2,p/s/p/s,Furey/Molitor/Moffitt/Peszek,06:28.0
 10/24/2019,2,2,p/s/p/s,Eble/Harrity/Mead/Richards,06:37.0
 10/24/2019,2,2,p/s/p/s,Dean/C Carlson/Dethlefs/Davison,06:35.0
 10/24/2019,3,2,p/s/p/s,DiSanto/Karwoski/Hack/Reed,06:20.0
-10/24/2019,3,2,p/s/s/s,Moffitt/Furey/Molitor/Peszek,06:47.0
+10/24/2019,3,2,p/s/p/s,Furey/Molitor/Moffitt/Peszek,06:47.0
 10/24/2019,3,2,p/s/p/s,Eble/Harrity/Mead/Richards,06:37.0
 10/24/2019,3,2,p/s/p/s,Dean/C Carlson/Dethlefs/Davison,06:55.0
 10/24/2019,4,2,p/s,Corrigan/Miklasevich,07:00.0
@@ -691,7 +691,7 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 12/11/2019,3,2,p/s/p/s,Dethlefs/Harrity/Eble/Richards,06:40.0
 12/11/2019,3,2,p/s/p/s,Mead/Carlson/Weiss/Peszek,06:20.0
 12/11/2019,3,2,p/s/p/s,Corrigan/Davison/Wallis/Miklasevich,06:35.0
-12/11/2019,3,2,p/s/p/s,Flagg/Clougher/Gaard/Grady,07:39.0
+12/11/2019,3,2,p/s/p/s,Clougher/Flagg/Gaard/Grady,07:39.0
 12/18/2019,1,2,p/s/p/s,Hack/Karwoski/Mead/Richards,06:21.0
 12/18/2019,1,2,p/s/p/s,DiSanto/Harrity/Eble/Reed,06:23.0
 12/18/2019,1,2,p/s/p/s,Dethlefs/Miklasevich/Weiss/Peszek,06:20.0
@@ -973,8 +973,8 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 2/11/2020,3,2,p/s/p/s,Hack/Davison/Weiss/Richards,06:25.0
 2/11/2020,3,2,p/s/p/s,Dethlefs/Peszek/Mead/Reed,06:20.0
 2/11/2020,4,2,p/s,Messner/Furey,07:00.0
-2/11/2020,4,2,s/s,Clougher/Davis,07:03.0
-2/11/2020,5,2,s/s,Clougher/Davis,07:00.0
+2/11/2020,4,2,p/s,Clougher/Davis,07:03.0
+2/11/2020,5,2,p/s,Clougher/Davis,07:00.0
 2/11/2020,5,2,p/s,Messner/Furey,07:03.0
 2/14/2020,1,2,p/s,Mead/Peszek,07:00.8
 2/14/2020,1,2,p/s,Dethlefs/Reed,07:02.3
@@ -1093,7 +1093,7 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 3/11/2020,3,2,p/s/p/s,Mead/Peszek/Weiss/Richards,06:20.0
 3/11/2020,3,2,p/s/p/s,DiSanto/Miklasevich/Eble/Reed,06:43.0
 3/11/2020,4,2,p/s,Landboe/Best,07:00.0
-3/11/2020,4,2,s/s,Knippen/Molitor,07:07.1
+3/11/2020,4,2,p/s,Molitor/Knippen,07:07.1
 3/11/2020,4,2,p/s,Gaard/Flagg,07:00.8
 3/12/2020,1,2,p/s,Flagg/Knippen,07:05.6
 3/12/2020,1,2,p/s,Landboe/Molitor,07:07.8
@@ -1102,18 +1102,18 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 10/21/2020,1,2,p/s,Dethlefs/Miklasevich,07:12.0
 10/21/2020,1,2,p/s,Corrigan/Richards,07:12.0
 10/21/2020,1,2,p/s,Dean/Carlson,07:19.0
-10/21/2020,1,2,p/p,Bub/Wallis,07:00.0
+10/21/2020,1,2,p/s,Wallis/Bub,07:00.0
 10/21/2020,1,2,p/s,Weiss/Knippen,07:03.0
 10/21/2020,2,2,p/s,Dethlefs/Miklasevich,07:11.0
 10/21/2020,2,2,p/s,Best/Grady,07:16.0
 10/21/2020,2,2,p/s,Corrigan/Richards,07:07.0
 10/21/2020,2,2,p/s,Dean/Carlson,07:24.0
-10/21/2020,2,2,p/p,Bub/Wallis,07:06.0
+10/21/2020,2,2,p/s,Wallis/Bub,07:06.0
 10/21/2020,2,2,p/s,Weiss/Knippen,07:00.0
 10/21/2020,3,2,p/s,Best/Grady,07:06.0
 10/21/2020,3,2,p/s,Corrigan/Richards,07:11.0
 10/21/2020,3,2,p/s,Dean/Carlson,07:34.0
-10/21/2020,3,2,p/p,Bub/Wallis,07:00.0
+10/21/2020,3,2,p/s,Wallis/Bub,07:00.0
 10/21/2020,3,2,p/s,Weiss/Knippen,07:08.0
 10/21/2020,3,2,p/s,Dethlefs/Miklasevich,07:06.0
 10/28/2020,1,2,p/s,Dethlefs/Miklasevich,07:00.0
@@ -1168,17 +1168,17 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 11/18/2020,3,2,p/s,Weiss/Grady,07:40.0
 11/18/2020,3,2,p/s,LeRoux/Knippen,07:41.0
 11/25/2020,1,2,p/s/p/s,Mead/Peszek/Wallis/Richards,06:20.0
-11/25/2020,1,2,p/s/p/s,Bub/Furey/LeRoux/Knippen,06:27.0
+11/25/2020,1,2,p/s/p/s,Furey/Bub/LeRoux/Knippen,06:27.0
 11/25/2020,1,2,p/s/p/s,Dethlefs/Davison/Hack/Grady,06:20.0
 11/25/2020,1,2,p/s/p/s,Best/Carlson/Corrigan/Miklasevich,06:20.0
 11/25/2020,2,2,p/s/p/s,Mead/Peszek/Wallis/Richards,06:24.0
 11/25/2020,2,2,p/s/p/s,Dethlefs/Davison/Hack/Grady,06:28.0
 11/25/2020,2,2,p/s/p/s,Best/Carlson/Corrigan/Miklasevich,06:27.0
-11/25/2020,2,2,p/s/p/s,Bub/Furey/LeRoux/Knippen,06:20.0
+11/25/2020,2,2,p/s/p/s,Furey/Bub/LeRoux/Knippen,06:20.0
 11/25/2020,3,2,p/s/p/s,Mead/Peszek/Wallis/Richards,06:20.0
 11/25/2020,3,2,p/s/p/s,Dethlefs/Davison/Hack/Grady,06:21.0
 11/25/2020,3,2,p/s/p/s,Best/Carlson/Corrigan/Miklasevich,06:25.0
-11/25/2020,3,2,p/s/p/s,Bub/Furey/LeRoux/Knippen,06:28.0
+11/25/2020,3,2,p/s/p/s,Furey/Bub/LeRoux/Knippen,06:28.0
 11/29/2020,1,2,p/s,Dethlefs/Davison,07:00.0
 11/29/2020,1,2,p/s,Wallis/Richards,07:14.0
 11/29/2020,1,2,p/s,Best/Miklasevich,07:03.0
@@ -1379,12 +1379,12 @@ Race Session (date),Piece,KM,Rigging,Personnel,Result
 3/24/2021,3,2,p/s/p/s,Hack/Miklasevich/Weiss/Reed,06:25.0
 3/24/2021,3,2,p/s/p/s,Best/Carlson/Dean/Grady,06:37.0
 3/24/2021,3,2,p/s/p/s,Dethlefs/Harrity/Wallis/Karwoski,06:36.0
-3/31/2021,1,2,p/s/p/s,Bub/Furey/Gaard/Knippen,06:20.0
+3/31/2021,1,2,p/s/p/s,Furey/Bub/Gaard/Knippen,06:20.0
 3/31/2021,1,2,p/s/p/s,Corrigan/Davison/Mead/Richards,06:20.2
 3/31/2021,1,2,p/s/p/s,Dethlefs/Carlson/Wallis/Harrity,06:28.1
 3/31/2021,1,2,p/s/p/s,Best/Grady/Dean/Karwoski,06:23.3
 3/31/2021,1,2,p/s/p/s,Hack/Miklasevich/Weiss/Reed,06:25.4
-3/31/2021,2,2,p/s/p/s,Bub/Furey/Gaard/Knippen,06:20.0
+3/31/2021,2,2,p/s/p/s,Furey/Bub/Gaard/Knippen,06:20.0
 3/31/2021,2,2,p/s/p/s,Corrigan/Davison/Mead/Richards,06:22.8
 3/31/2021,2,2,p/s/p/s,Dethlefs/Carlson/Wallis/Harrity,06:29.0
 3/31/2021,2,2,p/s/p/s,Best/Grady/Dean/Karwoski,06:31.3

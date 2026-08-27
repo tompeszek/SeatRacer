@@ -19,13 +19,13 @@ const SOURCE = 'tools/USNT 2018-2021 - Sheet1.csv'
 const OUT = 'public/data/USNT 2018-2021.csv'
 const KM = 2
 const BASE_TIME = { Pair: 420, Four: 380, Eight: 330 } // seconds for the fastest boat
-const SWITCHERS = new Set(['Flagg', 'Best'])
+const SWITCHERS = new Set(['Flagg', 'Best', 'Clougher', 'Furey', 'Molitor', 'MB'])
 // Ground truth from datasets with real rigging, plus user-confirmed sides.
 const FIXED = {
   Richards: 's', Weiss: 'p', Wallis: 'p', DiSanto: 'p', Peszek: 's', Reed: 's',
   Karwoski: 's', Harrity: 's', Mead: 'p', Dethlefs: 'p', Ochal: 'p', Hack: 'p',
   Corrigan: 'p', Dean: 'p', Carlson: 's', Rummel: 's', Davison: 's', Grady: 's',
-  Miklasevich: 's', 'C Carlson': 's', 'E Carlson': 's',
+  Miklasevich: 's', 'C Carlson': 's', 'E Carlson': 's', Bub: 's', Chance: 's',
 }
 const RENAME = { 'C. Carlson': 'C Carlson', Ezra: 'E Carlson', 'M/B': 'MB' }
 
