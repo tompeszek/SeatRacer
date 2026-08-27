@@ -78,7 +78,13 @@ def all_shell_classes(df):
 
 
 def series_to_obj(s):
-    return {str(k): float(v) for k, v in s.items()}
+    import math
+
+    def clean(v):
+        v = float(v)
+        return v if math.isfinite(v) else None
+
+    return {str(k): clean(v) for k, v in s.items()}
 
 
 def run_model(model_class, df, shell_classes, cfg):

@@ -2,3 +2,6 @@
 seatracer.egg-info/
 *.pyc
 *.vscode
+node_modules/
+dist/
+__pycache__/
