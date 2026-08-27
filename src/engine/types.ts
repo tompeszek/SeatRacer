@@ -97,4 +97,10 @@ export interface FitResult {
   /** Fitted values on the training rows. */
   fitted: Float64Array
   paramMap: Map<string, number>
+  /**
+   * Square root of the coefficient covariance (k rows): multiply by an iid
+   * standard normal vector to draw a correlated coefficient perturbation.
+   * Absent for losses without a covariance (Lp).
+   */
+  covHalf?: Float64Array[]
 }

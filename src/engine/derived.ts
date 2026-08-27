@@ -23,12 +23,98 @@ export interface AthleteStat {
   speedBehind: number
   rank: number
   totalInPosition: number
+  /** 80% range of plausible ranks within the side, from joint simulation. */
+  rankLow: number | null
+  rankHigh: number | null
   /** Appearances in the data. */
   races: number
   maxCorrelation: number
   maxCorrelatedWith: string
   minCorrelation: number
   minCorrelatedWith: string
+}
+
+/** Deterministic PRNG (mulberry32) for reproducible simulations. */
+function makeRng(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * 80% rank ranges by simulation from the joint coefficient distribution.
+ * Correlations between athletes' estimates are respected: each draw perturbs
+ * every coefficient together via the covariance square root, then ranks
+ * athletes within their side. Deterministic (fixed seed).
+ */
+export function simulateRankRanges(
+  design: Design,
+  fit: FitResult,
+  draws = 1000,
+  alpha = 0.2,
+  seed = 20260827,
+): Map<string, [number, number]> | null {
+  const covHalf = fit.covHalf
+  if (!covHalf || covHalf.length === 0) return null
+  const nAthletes = design.athletes.length
+  const m = covHalf[0].length
+  const rng = makeRng(seed)
+  // Box-Muller with a spare.
+  let spare: number | null = null
+  const normal = () => {
+    if (spare != null) {
+      const v = spare
+      spare = null
+      return v
+    }
+    let u = 0
+    let v = 0
+    while (u === 0) u = rng()
+    v = rng()
+    const r = Math.sqrt(-2 * Math.log(u))
+    spare = r * Math.sin(2 * Math.PI * v)
+    return r * Math.cos(2 * Math.PI * v)
+  }
+
+  const groups = new Map<string, number[]>()
+  design.athletes.forEach((name, i) => {
+    const suffix = name[name.length - 1]
+    if (!groups.has(suffix)) groups.set(suffix, [])
+    groups.get(suffix)!.push(i)
+  })
+
+  const ranks: Int16Array[] = design.athletes.map(() => new Int16Array(draws))
+  const z = new Float64Array(m)
+  const drawCoef = new Float64Array(nAthletes)
+  for (let d = 0; d < draws; d++) {
+    for (let j = 0; j < m; j++) z[j] = normal()
+    for (let c = 0; c < nAthletes; c++) {
+      let delta = 0
+      const row = covHalf[c]
+      for (let j = 0; j < m; j++) delta += row[j] * z[j]
+      drawCoef[c] = fit.params[c] + delta
+    }
+    for (const members of groups.values()) {
+      const order = [...members].sort((a, b) => drawCoef[a] - drawCoef[b])
+      order.forEach((athleteIdx, pos) => {
+        ranks[athleteIdx][d] = pos + 1
+      })
+    }
+  }
+
+  const out = new Map<string, [number, number]>()
+  const loIdx = Math.floor((alpha / 2) * (draws - 1))
+  const hiIdx = Math.ceil((1 - alpha / 2) * (draws - 1))
+  design.athletes.forEach((name, i) => {
+    const sorted = [...ranks[i]].sort((a, b) => a - b)
+    out.set(name, [sorted[loIdx], sorted[hiIdx]])
+  })
+  return out
 }
 
 export interface ShellStat {
@@ -119,6 +205,8 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
       speedBehind: 0,
       rank: 0,
       totalInPosition: 0,
+      rankLow: null,
+      rankHigh: null,
       races: races[i],
       maxCorrelation: athletes.length > 1 ? maxC : 0,
       maxCorrelatedWith: maxWith,
@@ -141,6 +229,17 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
       s.speedBehind = s.coefficient - fastest
       s.rank = sorted.findIndex((x) => x.coefficient === s.coefficient) + 1
       s.totalInPosition = list.length
+    }
+  }
+
+  const rankRanges = simulateRankRanges(design, fit)
+  if (rankRanges) {
+    for (const s of stats) {
+      const range = rankRanges.get(s.name)
+      if (range) {
+        s.rankLow = range[0]
+        s.rankHigh = range[1]
+      }
     }
   }
   return stats

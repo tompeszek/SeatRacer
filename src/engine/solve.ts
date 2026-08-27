@@ -15,6 +15,10 @@ export interface LstsqResult {
   singularValues: Float64Array
   fittedWhitened: Float64Array
   residWhitened: Float64Array
+  /** Right singular vectors as k rows of length m. */
+  vRows: Float64Array[]
+  /** 1/s where kept, 0 beyond the cutoff. */
+  sInv: Float64Array
 }
 
 /**
@@ -45,6 +49,14 @@ export function lstsqPinv(xRows: Float64Array[], y: Float64Array): LstsqResult {
   const pinvCut = RCOND * sMax
   let rank = 0
   for (const v of s) if (v > pinvCut) rank++
+  const sInv = new Float64Array(s.length)
+  for (let j = 0; j < s.length; j++) sInv[j] = s[j] > pinvCut ? 1 / s[j] : 0
+  const vRows: Float64Array[] = []
+  for (let c = 0; c < k; c++) {
+    const row = new Float64Array(s.length)
+    for (let j = 0; j < s.length; j++) row[j] = V.get(c, j)
+    vRows.push(row)
+  }
 
   // params = V * diag(sInv) * U' * y
   const m = s.length
@@ -90,7 +102,24 @@ export function lstsqPinv(xRows: Float64Array[], y: Float64Array): LstsqResult {
     singularValues: Float64Array.from(s),
     fittedWhitened,
     residWhitened,
+    vRows,
+    sInv,
   }
+}
+
+/**
+ * Square root of the parameter covariance: cov = scale * V S^-2 V', so
+ * half = sqrt(scale) * V S^-1 and cov = half half'. Row c is the k-vector
+ * whose dot product with an iid standard normal draw gives a correlated
+ * coefficient perturbation. Used for joint (rank) uncertainty.
+ */
+export function covarianceHalf(ls: LstsqResult, scale: number): Float64Array[] {
+  const root = Math.sqrt(Math.max(scale, 0))
+  return ls.vRows.map((row) => {
+    const out = new Float64Array(row.length)
+    for (let j = 0; j < row.length; j++) out[j] = root * row[j] * ls.sInv[j]
+    return out
+  })
 }
 
 export function whiten(

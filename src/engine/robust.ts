@@ -3,7 +3,7 @@
 //  - irlsLp: Lp(p) fitting by iteratively reweighted least squares, used for
 //    the user-selectable Lp loss (property-tested; no Python counterpart).
 import normalQuantile from '@stdlib/stats-base-dists-normal-quantile'
-import { lstsqPinv, whiten } from './solve'
+import { covarianceHalf, lstsqPinv, whiten } from './solve'
 
 const MAD_C = 0.6744897501960817 // Phi^{-1}(3/4), statsmodels scale.mad default
 
@@ -38,6 +38,7 @@ export interface RobustFit {
    * a different df (statsmodels' rank is numerically flaky by one). */
   h1: { ssPsi: number; mSum: number; varPsiPrime: number; n: number }
   normalizedCovDiag: Float64Array
+  covHalf: Float64Array[]
 }
 
 /**
@@ -166,6 +167,7 @@ export function fitHuberRlm(
     dfResid,
     h1: { ssPsi, mSum, varPsiPrime, n },
     normalizedCovDiag: base.normalizedCovDiag,
+    covHalf: covarianceHalf(base, factor),
   }
 }
 

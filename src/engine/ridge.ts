@@ -8,7 +8,7 @@
 // covariance sigma^2 (X'WX + P)^+, with sigma^2 = weighted SSR over
 // (n - effective degrees of freedom), edf = trace((X'WX + P)^+ X'WX).
 import tQuantile from '@stdlib/stats-base-dists-t-quantile'
-import { lstsqPinv, whiten } from './solve'
+import { lstsqPinv, whiten, type LstsqResult } from './solve'
 
 export interface RidgeFit {
   params: Float64Array
@@ -18,6 +18,7 @@ export interface RidgeFit {
   scale: number
   edf: number
   fitted: Float64Array
+  lstsq: LstsqResult
 }
 
 export function fitRidge(
@@ -80,5 +81,5 @@ export function fitRidge(
     ciLower[c] = ls.params[c] - q * bse[c]
     ciUpper[c] = ls.params[c] + q * bse[c]
   }
-  return { params: ls.params, bse, ciLower, ciUpper, scale, edf, fitted }
+  return { params: ls.params, bse, ciLower, ciUpper, scale, edf, fitted, lstsq: ls }
 }

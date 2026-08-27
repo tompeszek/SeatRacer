@@ -1,6 +1,6 @@
 // One entrypoint for every loss x shrinkage combination.
 import type { Design, FitResult, ModelSpec } from './types'
-import { fitWls } from './solve'
+import { covarianceHalf, fitWls } from './solve'
 import { fitHuberRlm, irlsLp, madAboutZero } from './robust'
 import { fitRidge } from './ridge'
 import { stripRigging } from './prep'
@@ -28,6 +28,7 @@ function toFitResult(
   dfResid: number,
   rank: number,
   fitted: Float64Array,
+  covHalf?: Float64Array[],
 ): FitResult {
   return {
     columns: design.columns,
@@ -39,6 +40,7 @@ function toFitResult(
     rank,
     fitted,
     paramMap: new Map(design.columns.map((c, i) => [c, params[i]])),
+    covHalf,
   }
 }
 
@@ -55,17 +57,25 @@ export function fitModel(design: Design, spec: ModelSpec): FitResult {
   if (spec.loss.kind === 'squared') {
     if (spec.shrinkage.kind === 'none') {
       const f = fitWls(x, y, w)
-      return toFitResult(design, f.params, f.bse, f.ciLower, f.ciUpper, f.dfResid, f.rank, f.fitted)
+      return toFitResult(
+        design, f.params, f.bse, f.ciLower, f.ciUpper, f.dfResid, f.rank, f.fitted,
+        covarianceHalf(f.lstsq, f.scale),
+      )
     }
     const { penalized, centers } = centersFor(design, spec)
     const f = fitRidge(x, y, w, spec.shrinkage.lambda, penalized, centers)
-    return toFitResult(design, f.params, f.bse, f.ciLower, f.ciUpper, x.length - f.edf, Math.round(f.edf), f.fitted)
+    return toFitResult(
+      design, f.params, f.bse, f.ciLower, f.ciUpper, x.length - f.edf, Math.round(f.edf), f.fitted,
+      covarianceHalf(f.lstsq, f.scale),
+    )
   }
 
   if (spec.loss.kind === 'huber') {
     if (spec.shrinkage.kind === 'none') {
       const f = fitHuberRlm(x, y, w, { t: spec.loss.c })
-      return toFitResult(design, f.params, f.bse, f.ciLower, f.ciUpper, f.dfResid, x[0].length, f.fitted)
+      return toFitResult(
+        design, f.params, f.bse, f.ciLower, f.ciUpper, f.dfResid, x[0].length, f.fitted, f.covHalf,
+      )
     }
     // Huber + ridge: IRLS with the ridge solve inside. Intervals come from
     // the final ridge step (approximate, labeled as such in the UI).
@@ -89,6 +99,7 @@ export function fitModel(design: Design, spec: ModelSpec): FitResult {
     }
     return toFitResult(
       design, fit.params, fit.bse, fit.ciLower, fit.ciUpper, x.length - fit.edf, Math.round(fit.edf), fit.fitted,
+      covarianceHalf(fit.lstsq, fit.scale),
     )
   }
 
