@@ -184,6 +184,7 @@ body {
 }
 
 .tab {
+  flex: 0 0 auto;
   padding: 11px 18px 9px;
   min-width: 84px;
   text-align: center;
@@ -741,6 +742,26 @@ select.plain:focus {
 
   .options-box {
     padding: 8px;
+  }
+
+  .tab {
+    padding: 10px 12px 8px;
+    min-width: 0;
+  }
+
+  /* The caption drops below the pills so the pill group keeps the row's
+     width; it wraps freely instead of truncating. */
+  .opt-row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .opt-caption {
+    flex-basis: 100%;
+    margin-left: calc(4rem + 8px);
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 }
 
