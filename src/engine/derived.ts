@@ -169,6 +169,155 @@ export function fittedRows(design: Design, fit: FitResult): FittedRow[] {
   }))
 }
 
+export interface PairStat {
+  a: string
+  b: string
+  avgDelta: number
+  races: number
+  tStat: number
+  pValue: number
+}
+
+/**
+ * Athlete pairs' joint performance vs the model: mean residual of boats
+ * containing both, with a one-sample t-test. Negative means faster together
+ * than the model expects (synergy). Ports _create_athlete_pairs_df.
+ */
+export function athletePairs(
+  design: Design,
+  fit: FitResult,
+  tCdf: (x: number, df: number) => number,
+): PairStat[] {
+  const resid = design.rows.map((row, r) => row.timePer500m - fit.fitted[r])
+  const byPair = new Map<string, { deltas: number[]; a: string; b: string }>()
+  design.rows.forEach((row, r) => {
+    const names = row.personnel.filter((n) => design.athletes.includes(n))
+    for (let i = 0; i < names.length; i++) {
+      for (let j = i + 1; j < names.length; j++) {
+        const [a, b] = [names[i], names[j]].sort()
+        const key = `${a}|${b}`
+        if (!byPair.has(key)) byPair.set(key, { deltas: [], a, b })
+        byPair.get(key)!.deltas.push(resid[r])
+      }
+    }
+  })
+  const out: PairStat[] = []
+  for (const { deltas, a, b } of byPair.values()) {
+    if (deltas.length < 2) continue
+    const n = deltas.length
+    const mean = deltas.reduce((s, v) => s + v, 0) / n
+    const sd = Math.sqrt(deltas.reduce((s, v) => s + (v - mean) ** 2, 0) / n)
+    const tStat = sd > 0 ? mean / (sd / Math.sqrt(n)) : Infinity
+    const pValue = sd > 0 ? 2 * (1 - tCdf(Math.abs(tStat), n - 1)) : 0
+    out.push({ a, b, avgDelta: mean, races: n, tStat, pValue })
+  }
+  return out.sort((x, y) => x.avgDelta - y.avgDelta)
+}
+
+export interface BiasStat {
+  name: string
+  suffix: string
+  avgDelta: number
+  sd: number
+  races: number
+  pValue: number
+  significant: boolean
+}
+
+/**
+ * Per-athlete prediction bias: mean residual (actual minus model) across the
+ * athlete's boats. Negative means their boats go faster than the model
+ * predicts. Ports the Fairness tab's analysis with the sign stated correctly.
+ */
+export function biasStats(
+  design: Design,
+  fit: FitResult,
+  tCdf: (x: number, df: number) => number,
+): BiasStat[] {
+  const byAthlete = new Map<string, number[]>()
+  design.rows.forEach((row, r) => {
+    const delta = row.timePer500m - fit.fitted[r]
+    for (const name of row.personnel) {
+      if (!design.athletes.includes(name)) continue
+      if (!byAthlete.has(name)) byAthlete.set(name, [])
+      byAthlete.get(name)!.push(delta)
+    }
+  })
+  const out: BiasStat[] = []
+  for (const [name, deltas] of byAthlete) {
+    if (deltas.length < 2) continue
+    const n = deltas.length
+    const mean = deltas.reduce((s, v) => s + v, 0) / n
+    const sd = Math.sqrt(deltas.reduce((s, v) => s + (v - mean) ** 2, 0) / n)
+    const tStat = sd > 0 ? mean / (sd / Math.sqrt(n)) : Infinity
+    const pValue = sd > 0 ? 2 * (1 - tCdf(Math.abs(tStat), n - 1)) : 0
+    const suffix = SUFFIX_POSITIONS[name[name.length - 1]] ? name[name.length - 1] : ''
+    out.push({ name, suffix, avgDelta: mean, sd, races: n, pValue, significant: pValue < 0.05 })
+  }
+  return out.sort((a, b) => a.avgDelta - b.avgDelta)
+}
+
+export interface CorrelationPair {
+  a: string
+  b: string
+  correlation: number
+  racesTogether: number
+}
+
+/**
+ * Design-column correlations between athletes. High positive correlation
+ * means the data cannot separate the two athletes' contributions.
+ */
+export function correlationPairs(design: Design): CorrelationPair[] {
+  const cols = design.athletes.map((_, c) => {
+    const v = new Float64Array(design.x.length)
+    for (let r = 0; r < design.x.length; r++) v[r] = design.x[r][c]
+    return v
+  })
+  const out: CorrelationPair[] = []
+  for (let i = 0; i < design.athletes.length; i++) {
+    for (let j = i + 1; j < design.athletes.length; j++) {
+      let together = 0
+      for (let r = 0; r < design.x.length; r++) {
+        if (cols[i][r] !== 0 && cols[j][r] !== 0) together++
+      }
+      out.push({
+        a: design.athletes[i],
+        b: design.athletes[j],
+        correlation: pearson(cols[i], cols[j]),
+        racesTogether: together,
+      })
+    }
+  }
+  return out.sort((x, y) => y.correlation - x.correlation)
+}
+
+export interface DuplicateEntry {
+  piece: string
+  athlete: string
+  boats: number
+}
+
+/** Athletes appearing in more than one boat within the same piece. */
+export function duplicateAthletes(design: Design): DuplicateEntry[] {
+  const byPiece = new Map<string, Map<string, number>>()
+  for (const row of design.rows) {
+    if (!byPiece.has(row.piece)) byPiece.set(row.piece, new Map())
+    const seen = byPiece.get(row.piece)!
+    for (const name of row.personnel) {
+      if (name === 'Coxᶜ') continue
+      seen.set(name, (seen.get(name) ?? 0) + 1)
+    }
+  }
+  const out: DuplicateEntry[] = []
+  for (const [piece, seen] of byPiece) {
+    for (const [athlete, boats] of seen) {
+      if (boats > 1) out.push({ piece, athlete, boats })
+    }
+  }
+  return out
+}
+
 /**
  * Predicted pace per 500m for an arbitrary lineup: athlete fractions plus the
  * shell class effect. Piece effects are unknown for a future race, so the

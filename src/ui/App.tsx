@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parseRaceCsv } from '../engine/parse'
 import { shellClassFromRigging } from '../engine/prep'
 import type { RaceRow, WeightSettings } from '../engine/types'
+import type { AthleteInfluence, TimeSeriesResult } from '../engine/influence'
 import type { FitPayload, SerializableSpec } from '../workers/fit.worker'
 import { FitClient } from './fitClient'
 import { useTheme } from './theme'
@@ -18,8 +19,27 @@ import { DataTab } from './tabs/DataTab'
 import { PerformanceTab } from './tabs/PerformanceTab'
 import { NewLineupTab } from './tabs/NewLineupTab'
 import { ModelLabTab } from './tabs/ModelLabTab'
+import { AthletesTab, ergToCenter } from './tabs/AthletesTab'
+import { FairnessTab } from './tabs/FairnessTab'
+import { SynergyTab } from './tabs/SynergyTab'
+import { CorrelationsTab } from './tabs/CorrelationsTab'
+import { ValidationTab } from './tabs/ValidationTab'
+import { IndividualTab } from './tabs/IndividualTab'
+import { OverTimeTab } from './tabs/OverTimeTab'
 
-const TABS = ['Data', 'Performance', 'New Lineup', 'Model Lab'] as const
+const TABS = [
+  'Data',
+  'Athletes',
+  'Performance',
+  'New Lineup',
+  'Individual',
+  'Synergies',
+  'Fairness',
+  'Correlations',
+  'Validation',
+  'Over Time',
+  'Model Lab',
+] as const
 type Tab = (typeof TABS)[number]
 
 interface Upload {
@@ -54,9 +74,16 @@ export function App() {
   const [uploads, setUploads] = useState<Upload[]>(() => loadStored('uploads', { list: [] as Upload[] }).list)
   const [csvText, setCsvText] = useState<string | null>(null)
   const [controls, setControls] = useState<ControlState>(() => loadStored('controls', DEFAULT_CONTROLS))
+  const [ergs, setErgs] = useState<Record<string, string>>(() => loadStored('ergs', { map: {} as Record<string, string> }).map)
   const [result, setResult] = useState<FitPayload | null>(null)
   const [fitting, setFitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [influence, setInfluence] = useState<AthleteInfluence[] | null>(null)
+  const [influenceRunning, setInfluenceRunning] = useState(false)
+  const [influenceProgress, setInfluenceProgress] = useState<[number, number] | null>(null)
+  const [timeSeries, setTimeSeries] = useState<TimeSeriesResult | null>(null)
+  const [timeRunning, setTimeRunning] = useState(false)
+  const [timeProgress, setTimeProgress] = useState<[number, number] | null>(null)
   const client = useRef<FitClient>()
   if (!client.current) client.current = new FitClient()
   const menuRef = useRef<HTMLDivElement>(null)
@@ -106,7 +133,6 @@ export function App() {
   const rawRows: RaceRow[] = useMemo(() => {
     if (!csvText) return []
     try {
-      setError(null)
       return parseRaceCsv(csvText)
     } catch (err) {
       setError(String(err))
@@ -145,12 +171,22 @@ export function App() {
             lambda: STRENGTH_OPTIONS[controls.strength].value,
             center: controls.shrinkage === 'Toward Ergs' ? 'erg' : 'zero',
           } as const)
-    return { loss, shrinkage }
-  }, [controls])
+    const ergCenters: Array<[string, number]> = []
+    if (shrinkage.kind === 'ridge' && shrinkage.center === 'erg') {
+      for (const [name, time] of Object.entries(ergs)) {
+        const center = ergToCenter(time)
+        if (center != null) ergCenters.push([name, center])
+      }
+    }
+    return { loss, shrinkage, ergCenters: ergCenters.length ? ergCenters : undefined }
+  }, [controls, ergs])
 
-  // Refit on any input change, debounced.
+  // Refit on any input change, debounced. Slow derived computations
+  // (influence, trends) are invalidated and rerun on demand.
   useEffect(() => {
     store('controls', controls)
+    setInfluence(null)
+    setTimeSeries(null)
     if (!csvText || rawRows.length === 0) {
       setResult(null)
       return
@@ -172,6 +208,38 @@ export function App() {
     return () => clearTimeout(timer)
   }, [csvText, rawRows, settings, spec, controls])
 
+  const runInfluence = useCallback(() => {
+    if (!csvText) return
+    setInfluenceRunning(true)
+    setInfluenceProgress(null)
+    client
+      .current!.leaveOneOut(csvText, settings, spec, (d, t) => setInfluenceProgress([d, t]))
+      .then((r) => {
+        setInfluence(r)
+        setInfluenceRunning(false)
+      })
+      .catch((err) => {
+        setError(String(err))
+        setInfluenceRunning(false)
+      })
+  }, [csvText, settings, spec])
+
+  const runTime = useCallback(() => {
+    if (!csvText) return
+    setTimeRunning(true)
+    setTimeProgress(null)
+    client
+      .current!.overTime(csvText, settings, spec, (d, t) => setTimeProgress([d, t]))
+      .then((r) => {
+        setTimeSeries(r)
+        setTimeRunning(false)
+      })
+      .catch((err) => {
+        setError(String(err))
+        setTimeRunning(false)
+      })
+  }, [csvText, settings, spec])
+
   const onUpload = useCallback(
     (name: string, text: string) => {
       const next = [...uploads.filter((u) => u.name !== name), { name, text }]
@@ -181,6 +249,11 @@ export function App() {
     },
     [uploads],
   )
+
+  const onErgs = useCallback((next: Record<string, string>) => {
+    setErgs(next)
+    store('ergs', { map: next })
+  }, [])
 
   const datasetNames = [...BUNDLED_DATASETS, ...uploads.map((u) => u.name)]
 
@@ -234,6 +307,7 @@ export function App() {
             onControls={setControls}
           />
         )}
+        {tab === 'Athletes' && <AthletesTab rows={rawRows} ergs={ergs} onErgs={onErgs} />}
         {tab === 'Performance' && (
           <PerformanceTab
             result={result}
@@ -246,9 +320,30 @@ export function App() {
         {tab === 'New Lineup' && (
           <NewLineupTab result={result} sternWeight={STERN_BIAS_OPTIONS[controls.stern].value} />
         )}
+        {tab === 'Individual' && (
+          <IndividualTab
+            influence={influence}
+            running={influenceRunning}
+            progress={influenceProgress}
+            onRun={runInfluence}
+            hasData={rawRows.length > 0}
+          />
+        )}
+        {tab === 'Synergies' && <SynergyTab result={result} />}
+        {tab === 'Fairness' && <FairnessTab result={result} />}
+        {tab === 'Correlations' && <CorrelationsTab result={result} />}
+        {tab === 'Validation' && <ValidationTab result={result} />}
+        {tab === 'Over Time' && (
+          <OverTimeTab
+            series={timeSeries}
+            running={timeRunning}
+            progress={timeProgress}
+            onRun={runTime}
+            hasData={rawRows.length > 0}
+          />
+        )}
         {tab === 'Model Lab' && <ModelLabTab csvText={csvText} settings={settings} controls={controls} />}
       </main>
     </>
   )
 }
-

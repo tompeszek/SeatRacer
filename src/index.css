@@ -585,6 +585,37 @@ select.plain:focus {
   border-color: var(--primary);
 }
 
+.erg-input {
+  border: 1px solid rgba(0, 0, 0, 0.24);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  width: 5.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  background: var(--card);
+}
+
+.erg-input.wide {
+  width: 14rem;
+  text-align: left;
+}
+
+.erg-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+[data-theme='dark'] .erg-input {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme='dark'] .erg-input:focus {
+  border-color: var(--primary);
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
