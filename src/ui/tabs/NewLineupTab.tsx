@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { FitPayload } from '../../workers/fit.worker'
 import { predictLineup } from '../../engine/derived'
-import { secondsToTime } from '../../engine/prep'
+import { secondsToTime, RIG_SUPERSCRIPTS } from '../../engine/prep'
 import { SortableTable, type Column } from '../SortableTable'
 
 interface Props {
@@ -16,23 +16,53 @@ interface SavedLineup {
   pace: number
 }
 
-function seatCount(shellClass: string): number {
+/** Rigging patterns for a shell class: cox first, then stroke to bow. */
+function riggingOptionsFor(shellClass: string): string[] {
   const rowers = parseInt(shellClass, 10)
-  return rowers + (shellClass.includes('+') ? 1 : 0)
+  const cox = shellClass.includes('+')
+  const scull = shellClass.includes('x')
+  if (scull) {
+    const seats = Array(rowers).fill('x')
+    return [cox ? ['c', ...seats].join('/') : seats.join('/')]
+  }
+  const startP: string[] = []
+  const startS: string[] = []
+  for (let i = 0; i < rowers; i++) {
+    startP.push(i % 2 === 0 ? 'p' : 's')
+    startS.push(i % 2 === 0 ? 's' : 'p')
+  }
+  const patterns = [startP.join('/'), startS.join('/')]
+  return patterns.map((p) => (cox ? `c/${p}` : p))
+}
+
+function seatLabel(rig: string[], index: number): string {
+  if (rig[index] === 'c') return 'Coxswain'
+  const rowerSeats = rig.filter((r) => r !== 'c').length
+  const rowerIndex = rig.slice(0, index + 1).filter((r) => r !== 'c').length // 1-based from stroke
+  if (rowerIndex === 1) return rowerSeats > 1 ? 'Stroke' : 'Sculler'
+  if (rowerIndex === rowerSeats) return 'Bow'
+  return `Seat ${rowerSeats - rowerIndex + 1}`
 }
 
 export function NewLineupTab({ result, sternWeight }: Props) {
   const shellClasses = result?.shellClasses ?? []
   const [shellClass, setShellClass] = useState<string>('')
+  const [riggingIndex, setRiggingIndex] = useState(0)
   const [seats, setSeats] = useState<string[]>([])
   const [saved, setSaved] = useState<SavedLineup[]>([])
 
   const activeShell = shellClass || shellClasses[0] || ''
-  const nSeats = activeShell ? seatCount(activeShell) : 0
+  const riggingOptions = activeShell ? riggingOptionsFor(activeShell) : []
+  const rigging = riggingOptions[Math.min(riggingIndex, riggingOptions.length - 1)] ?? ''
+  const rig = rigging ? rigging.split('/') : []
   const paramMap = useMemo(() => new Map(result?.params ?? []), [result])
+  const coxswainsExcluded = (result?.athleteNames ?? []).every((a) => !a.endsWith('ᶜ'))
 
-  const chosen = seats.slice(0, nSeats)
-  const complete = chosen.length === nSeats && chosen.every((s) => s !== '')
+  const chosen = rig.map((seat, i) => {
+    if (seat === 'c' && coxswainsExcluded) return 'Coxᶜ'
+    return seats[i] ?? ''
+  })
+  const complete = rig.length > 0 && chosen.every((s) => s !== '')
   const pace = complete ? predictLineup(paramMap, chosen, activeShell, sternWeight) : NaN
 
   const savedColumns: Array<Column<SavedLineup>> = [
@@ -66,9 +96,10 @@ export function NewLineupTab({ result, sternWeight }: Props) {
     <>
       <h1>New Lineup</h1>
       <p className="hint">
-        Predicted pace combines the shell class effect and each athlete's coefficient. Piece
-        conditions are unknown for a future race, so compare lineups against each other rather
-        than reading the pace as an absolute time.
+        Predicted pace combines the shell class effect and each athlete's coefficient. Each seat
+        only offers athletes who row that side: port and starboard estimates are separate and
+        cannot stand in for each other. Piece conditions are unknown for a future race, so
+        compare lineups against each other rather than reading the pace as an absolute time.
       </p>
       <div className="opt-row" style={{ margin: '8px 0' }}>
         <span className="opt-label">Shell</span>
@@ -79,6 +110,7 @@ export function NewLineupTab({ result, sternWeight }: Props) {
               className={`pill${s === activeShell ? ' active' : ''}`}
               onClick={() => {
                 setShellClass(s)
+                setRiggingIndex(0)
                 setSeats([])
               }}
             >
@@ -87,31 +119,64 @@ export function NewLineupTab({ result, sternWeight }: Props) {
           ))}
         </div>
       </div>
+      {riggingOptions.length > 1 && (
+        <div className="opt-row" style={{ margin: '8px 0' }}>
+          <span className="opt-label">Rigging</span>
+          <div className="pills">
+            {riggingOptions.map((opt, i) => (
+              <button
+                key={opt}
+                className={`pill${i === riggingIndex ? ' active' : ''}`}
+                onClick={() => {
+                  setRiggingIndex(i)
+                  setSeats([])
+                }}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="form-row">
-        {Array.from({ length: nSeats }, (_, i) => (
-          <label key={i} className="form-field">
-            {activeShell.includes('+') && i === 0 ? 'Coxswain' : `Seat ${activeShell.includes('+') ? i : i + 1}`}
-            <select
-              className="plain"
-              value={chosen[i] ?? ''}
-              onChange={(e) => {
-                const next = [...chosen]
-                while (next.length < nSeats) next.push('')
-                next[i] = e.target.value
-                setSeats(next)
-              }}
-            >
-              <option value="">Choose</option>
-              {result.athleteNames
-                .filter((a) => !chosen.includes(a) || chosen[i] === a)
-                .map((a) => (
+        {rig.map((seat, i) => {
+          const suffix = RIG_SUPERSCRIPTS[seat]
+          if (seat === 'c' && coxswainsExcluded) {
+            return (
+              <label key={i} className="form-field">
+                {seatLabel(rig, i)}
+                <select className="plain" value="Cox" disabled>
+                  <option>Cox</option>
+                </select>
+              </label>
+            )
+          }
+          const eligible = result.athleteNames.filter(
+            (a) => a.endsWith(suffix) && (!chosen.includes(a) || chosen[i] === a),
+          )
+          return (
+            <label key={i} className="form-field">
+              {seatLabel(rig, i)}
+              <select
+                className="plain"
+                value={chosen[i]}
+                onChange={(e) => {
+                  const next = [...seats]
+                  while (next.length < rig.length) next.push('')
+                  next[i] = e.target.value
+                  setSeats(next)
+                }}
+              >
+                <option value="">Choose</option>
+                {eligible.map((a) => (
                   <option key={a} value={a}>
                     {a}
                   </option>
                 ))}
-            </select>
-          </label>
-        ))}
+              </select>
+            </label>
+          )
+        })}
       </div>
       <div className="controls">
         <span className="count-pill">

@@ -3,7 +3,6 @@ import type { AthleteStat, ShellStat } from '../../engine/derived'
 import { SortableTable, type Column } from '../SortableTable'
 import { OptionsSection } from '../OptionsPanel'
 import type { ControlState } from '../options'
-import { secondsToTime } from '../../engine/prep'
 
 interface Props {
   result: FitPayload | null
@@ -15,26 +14,31 @@ interface Props {
 
 const fmt = (v: number, digits = 1) => (Number.isFinite(v) ? v.toFixed(digits) : '')
 
+const SIDE_NAMES: Record<string, string> = {
+  'ᵖ': 'Port',
+  'ˢ': 'Starboard',
+  'ˣ': 'Scull',
+  'ᶜ': 'Coxswain',
+}
+const SIDE_ORDER = ['Port', 'Starboard', 'Scull', 'Coxswain']
+
 const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
   { key: 'name', label: 'Rower', value: (r) => r.name },
-  { key: 'coef', label: 'Coefficient', num: true, value: (r) => r.coefficient, render: (r) => fmt(r.coefficient) },
-  {
-    key: 'ci',
-    label: '95% Interval',
-    num: true,
-    value: (r) => r.upper - r.lower,
-    render: (r) =>
-      Number.isFinite(r.lower) ? `${fmt(r.lower)} to ${fmt(r.upper)}` : '',
-  },
   {
     key: 'behind',
     label: 'Behind',
     num: true,
     value: (r) => r.speedBehind,
-    render: (r) => (r.speedBehind > 0 ? `+${fmt(r.speedBehind)}` : ''),
+    render: (r) => (r.speedBehind > 0 ? `+${fmt(r.speedBehind)}` : 'Fastest'),
+  },
+  {
+    key: 'ci',
+    label: 'Uncertainty',
+    num: true,
+    value: (r) => (r.upper - r.lower) / 2,
+    render: (r) => (Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : ''),
   },
   { key: 'rank', label: 'Rank', num: true, value: (r) => r.rank },
-  { key: 'of', label: 'Of', num: true, value: (r) => r.totalInPosition },
   { key: 'races', label: 'Races', num: true, value: (r) => r.races },
   {
     key: 'maxcorr',
@@ -44,19 +48,38 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
   },
 ]
 
-const SHELL_COLUMNS: Array<Column<ShellStat>> = [
-  { key: 'shell', label: 'Shell Class', value: (r) => r.shellClass },
-  { key: 'coef', label: 'Pace Effect', num: true, value: (r) => r.coefficient, render: (r) => fmt(r.coefficient) },
-  {
-    key: 'ci',
-    label: '95% Interval',
-    num: true,
-    value: (r) => r.upper - r.lower,
-    render: (r) => (Number.isFinite(r.lower) ? `${fmt(r.lower)} to ${fmt(r.upper)}` : ''),
-  },
-]
+function shellColumns(shells: ShellStat[]): Array<Column<ShellStat>> {
+  const fastest = Math.min(...shells.map((s) => s.coefficient))
+  return [
+    { key: 'shell', label: 'Shell Class', value: (r) => r.shellClass },
+    {
+      key: 'behind',
+      label: 'Behind',
+      num: true,
+      value: (r) => r.coefficient - fastest,
+      render: (r) => (r.coefficient - fastest > 0 ? `+${fmt(r.coefficient - fastest)}` : 'Fastest'),
+    },
+    {
+      key: 'ci',
+      label: 'Uncertainty',
+      num: true,
+      value: (r) => (r.upper - r.lower) / 2,
+      render: (r) => (Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : ''),
+    },
+  ]
+}
 
 export function PerformanceTab({ result, fitting, controls, allShells, onControls }: Props) {
+  const bySide = new Map<string, AthleteStat[]>()
+  for (const a of result?.athletes ?? []) {
+    const side = SIDE_NAMES[a.suffix] ?? 'Other'
+    if (!bySide.has(side)) bySide.set(side, [])
+    bySide.get(side)!.push(a)
+  }
+  const sides = SIDE_ORDER.filter((s) => bySide.has(s)).concat(
+    [...bySide.keys()].filter((s) => !SIDE_ORDER.includes(s)),
+  )
+
   return (
     <>
       <div className="page-header">
@@ -69,28 +92,34 @@ export function PerformanceTab({ result, fitting, controls, allShells, onControl
       ) : (
         <>
           <p className="hint">
-            The coefficient is each athlete's estimated effect on boat pace, in seconds per 500m:
-            lower is faster. Behind is the gap to the fastest athlete rowing the same side. The
-            interval covers where the true effect plausibly lies; when an athlete almost always
-            rows with the same partners, the data cannot separate them and the interval widens
-            (see Most Confounded With).
+            Behind is each athlete's estimated cost in boat pace, in seconds per 500m, relative
+            to the fastest athlete on the same side; only these gaps are meaningful, never an
+            absolute number. Port and starboard are estimated separately and are not comparable
+            to each other, so each side has its own table. Uncertainty is the give-or-take on
+            the estimate; when an athlete almost always rows with the same partners, the data
+            cannot separate them and the uncertainty widens (see Most Confounded With).
           </p>
-          <SortableTable
-            columns={ATHLETE_COLUMNS}
-            rows={result.athletes}
-            defaultSort="coef"
-            rowKey={(r) => r.name}
-          />
+          <div className="side-cols">
+            {sides.map((side) => (
+              <div className="side-col" key={side}>
+                <h2>{side}</h2>
+                <SortableTable
+                  columns={ATHLETE_COLUMNS}
+                  rows={bySide.get(side)!}
+                  defaultSort="behind"
+                  rowKey={(r) => r.name}
+                />
+              </div>
+            ))}
+          </div>
           <h2>Shell Classes</h2>
           <p className="hint">
-            Base pace by boat type, seconds per 500m. Example: a predicted 8+ at{' '}
-            {result.shells.length > 0 ? secondsToTime(Math.min(...result.shells.map((s) => s.coefficient))) : ''}{' '}
-            per 500m before athlete effects.
+            How much pace each boat type gives up to the fastest type, in seconds per 500m.
           </p>
           <SortableTable
-            columns={SHELL_COLUMNS}
+            columns={shellColumns(result.shells)}
             rows={result.shells}
-            defaultSort="coef"
+            defaultSort="behind"
             rowKey={(r) => r.shellClass}
           />
         </>

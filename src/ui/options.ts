@@ -68,7 +68,7 @@ export const DEFAULT_CONTROLS: ControlState = {
   recency: 'Off',
   close: 'Off',
   stern: 'Off',
-  coxswains: true,
+  coxswains: false,
   loss: 'Squared',
   lpP: '1',
   shrinkage: 'Off',

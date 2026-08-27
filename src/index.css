@@ -629,6 +629,33 @@ select.plain:focus {
   z-index: 300;
 }
 
+/* --- Side-by-side tables for parallel populations (port vs starboard) --- */
+
+.side-cols {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.side-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.side-col h2 {
+  margin-top: 0.4rem;
+}
+
+@media (max-width: 900px) {
+  .side-cols {
+    flex-direction: column;
+  }
+
+  .side-col {
+    width: 100%;
+  }
+}
+
 /* --- Empty state --- */
 
 .empty-state {

@@ -17,8 +17,9 @@ import {
 import { DataTab } from './tabs/DataTab'
 import { PerformanceTab } from './tabs/PerformanceTab'
 import { NewLineupTab } from './tabs/NewLineupTab'
+import { ModelLabTab } from './tabs/ModelLabTab'
 
-const TABS = ['Data', 'Performance', 'New Lineup'] as const
+const TABS = ['Data', 'Performance', 'New Lineup', 'Model Lab'] as const
 type Tab = (typeof TABS)[number]
 
 interface Upload {
@@ -245,6 +246,7 @@ export function App() {
         {tab === 'New Lineup' && (
           <NewLineupTab result={result} sternWeight={STERN_BIAS_OPTIONS[controls.stern].value} />
         )}
+        {tab === 'Model Lab' && <ModelLabTab csvText={csvText} settings={settings} controls={controls} />}
       </main>
     </>
   )

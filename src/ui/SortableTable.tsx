@@ -17,33 +17,47 @@ interface Props<T> {
   rowKey: (row: T, index: number) => string
   /** When set, a heavier separator is drawn where this key changes. */
   groupKey?: (row: T) => string
+  /**
+   * When set, rows are pinned into these groups: sorting reorders within a
+   * group, never across groups (style guide Section 9.5).
+   */
+  groupOrder?: string[]
 }
 
-export function SortableTable<T>({ columns, rows, defaultSort, defaultDesc, rowKey, groupKey }: Props<T>) {
+export function SortableTable<T>({ columns, rows, defaultSort, defaultDesc, rowKey, groupKey, groupOrder }: Props<T>) {
   const [sortKey, setSortKey] = useState<string | null>(defaultSort ?? null)
   const [desc, setDesc] = useState(defaultDesc ?? false)
 
   const sorted = useMemo(() => {
-    if (!sortKey) return rows
-    const col = columns.find((c) => c.key === sortKey)
-    if (!col) return rows
+    const col = sortKey ? columns.find((c) => c.key === sortKey) : undefined
+    if (!col && !groupOrder) return rows
+    const groupRank = (row: T): number => {
+      if (!groupOrder || !groupKey) return 0
+      const idx = groupOrder.indexOf(groupKey(row))
+      return idx < 0 ? groupOrder.length : idx
+    }
     const withIndex = rows.map((row, i) => ({ row, i }))
     withIndex.sort((a, b) => {
-      const va = col.value(a.row)
-      const vb = col.value(b.row)
-      let cmp: number
-      if (typeof va === 'number' && typeof vb === 'number') {
-        const na = Number.isNaN(va) ? Infinity : va
-        const nb = Number.isNaN(vb) ? Infinity : vb
-        cmp = na - nb
-      } else {
-        cmp = String(va) < String(vb) ? -1 : String(va) > String(vb) ? 1 : 0
+      const g = groupRank(a.row) - groupRank(b.row)
+      if (g !== 0) return g
+      let cmp = 0
+      if (col) {
+        const va = col.value(a.row)
+        const vb = col.value(b.row)
+        if (typeof va === 'number' && typeof vb === 'number') {
+          const na = Number.isNaN(va) ? Infinity : va
+          const nb = Number.isNaN(vb) ? Infinity : vb
+          cmp = na - nb
+        } else {
+          cmp = String(va) < String(vb) ? -1 : String(va) > String(vb) ? 1 : 0
+        }
+        if (desc) cmp = -cmp
       }
       if (cmp === 0) cmp = a.i - b.i
-      return desc ? -cmp : cmp
+      return cmp
     })
     return withIndex.map((x) => x.row)
-  }, [rows, columns, sortKey, desc])
+  }, [rows, columns, sortKey, desc, groupKey, groupOrder])
 
   const onSort = (key: string) => {
     if (sortKey === key) setDesc(!desc)
