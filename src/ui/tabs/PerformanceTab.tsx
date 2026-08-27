@@ -84,8 +84,11 @@ function shellColumns(shells: ShellStat[]): Array<Column<ShellStat>> {
       key: 'ci',
       label: 'Uncertainty',
       num: true,
-      value: (r) => (r.upper - r.lower) / 2,
-      render: (r) => (Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : ''),
+      value: (r) => (comparable(r) ? (r.upper - r.lower) / 2 : Infinity),
+      // An unidentified class has unbounded true uncertainty; the computed
+      // number is the spread of an arbitrary representative, so hide it.
+      render: (r) =>
+        comparable(r) && Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : '',
     },
   ]
 }
