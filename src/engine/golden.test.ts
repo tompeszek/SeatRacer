@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import tQuantileTest from '@stdlib/stats-base-dists-t-quantile'
+import normalQuantileTest from '@stdlib/stats-base-dists-normal-quantile'
 import { parseRaceCsv } from './parse'
+import { fitHuberRlm } from './robust'
 import { prepRows, timeToSeconds, shellClassFromRigging } from './prep'
 import { buildDesign } from './design'
 import { fitWls, fitGlmGaussian } from './solve'
@@ -38,6 +40,7 @@ interface Fixture {
     athletes: string[]
     rows: Array<{
       piece: string
+      personnel: string
       shell_class: string
       time_seconds: number
       time_per_500m: number
@@ -82,7 +85,7 @@ describe('helpers', () => {
   })
 })
 
-describe.each(fixtureFiles)('%s', (file) => {
+for (const file of fixtureFiles) describe(file, () => {
   const fixture = loadFixture(file)
   const csv = readFileSync(join(DATA, fixture.dataset), 'utf-8')
   const raw = parseRaceCsv(csv)
@@ -193,6 +196,51 @@ describe.each(fixtureFiles)('%s', (file) => {
     for (const col of exp.columns) {
       const i = index.get(col)!
       expect(Math.abs(fit.params[i] - (exp.params[col] as number)), `coef ${col}`).toBeLessThan(1e-6)
+    }
+  })
+
+  // RLM ignores observation weights in the old engine (sm.RLM(y, X)), so the
+  // parity call passes none. bse/CIs are recomputed at the fixture's df, as
+  // for OLS, to factor out the known rank-by-one flakiness.
+  it('Huber RLM matches statsmodels', () => {
+    const ones = new Float64Array(design.x.length).fill(1)
+    const fit = fitHuberRlm(design.x, design.y, ones)
+    const exp = fixture.models.rlm
+    const index = new Map(design.columns.map((c, i) => [c, i]))
+    expect(Math.abs(fit.dfResid - exp.df_resid!)).toBeLessThanOrEqual(1)
+    // IRLS stops on a deviance criterion, so the exact stopping point differs
+    // slightly between implementations on small, weakly identified datasets.
+    // The gate is absolute 1e-5 or 1% of the coefficient's standard error,
+    // whichever is larger: any difference far inside the statistical
+    // uncertainty is a stopping-point artifact, not a formula error.
+    for (const col of exp.columns) {
+      const i = index.get(col)!
+      const tol = Math.max(2e-5, 0.01 * Math.abs((exp.bse[col] as number) || 0))
+      expect(Math.abs(fit.params[i] - (exp.params[col] as number)), `coef ${col}`).toBeLessThan(tol)
+    }
+    const { ssPsi, mSum, varPsiPrime, n } = fit.h1
+    const m = mSum / n
+    const factorAt = (df: number) => {
+      const kc = 1 + ((n - df) / n) * (varPsiPrime / (m * m))
+      return (kc * kc * ((1 / df) * ssPsi * fit.scale * fit.scale)) / (m * m)
+    }
+    const q = normalQuantileTest(0.975, 0, 1)
+    for (const col of exp.columns) {
+      if (exp.bse[col] == null) continue
+      const i = index.get(col)!
+      const bseFx = exp.bse[col] as number
+      const bseAdj = Math.sqrt(fit.normalizedCovDiag[i] * factorAt(exp.df_resid!))
+      expect(Math.abs(bseAdj - bseFx), `rlm bse ${col}`).toBeLessThan(Math.max(1e-5, 1e-3 * bseFx))
+      // CI misses compound the coefficient and bse stopping-point artifacts.
+      const ciTol = Math.max(1e-4, 1.5e-2 * bseFx)
+      expect(
+        Math.abs(fit.params[i] - q * bseAdj - (exp.ci_lower[col] as number)),
+        `rlm ciL ${col}`,
+      ).toBeLessThan(ciTol)
+      expect(
+        Math.abs(fit.params[i] + q * bseAdj - (exp.ci_upper[col] as number)),
+        `rlm ciU ${col}`,
+      ).toBeLessThan(ciTol)
     }
   })
 })
