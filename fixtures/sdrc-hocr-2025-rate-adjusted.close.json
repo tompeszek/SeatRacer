@@ -1,0 +1,422 @@
+{
+ "dataset": "SDRC HOCR 2025 rate adjusted.csv",
+ "config": {
+  "halflife": null,
+  "weight_close": 8.0,
+  "weight_stern": null,
+  "include_coxswains": true,
+  "shell_class": [
+   "4-"
+  ]
+ },
+ "models": {
+  "ols": {
+   "columns": [
+    "Dougᵖ",
+    "Stephenˢ",
+    "Sallyᵖ",
+    "Willˢ",
+    "Shaneᵖ",
+    "Albertoˢ",
+    "Gordoᵖ",
+    "Lucasˢ",
+    "4-",
+    "Piece_9/16/2025 #1",
+    "Piece_9/16/2025 #2",
+    "Piece_9/16/2025 #3",
+    "Piece_9/16/2025 #4"
+   ],
+   "params": {
+    "Dougᵖ": 10.135659880835007,
+    "Stephenˢ": 4.138138690713504,
+    "Sallyᵖ": 10.13565988083505,
+    "Willˢ": 13.023001754101351,
+    "Shaneᵖ": 9.31774921007407,
+    "Albertoˢ": 15.315270400195601,
+    "Gordoᵖ": 9.31774921007407,
+    "Lucasˢ": 6.430407336807745,
+    "4-": 77.81363636363642,
+    "Piece_9/16/2025 #1": 16.909659090909106,
+    "Piece_9/16/2025 #2": 19.809659090909083,
+    "Piece_9/16/2025 #3": 21.88465909090912,
+    "Piece_9/16/2025 #4": 19.209659090909117
+   },
+   "bse": {
+    "Dougᵖ": 0.5177393151753588,
+    "Stephenˢ": 1.071798046402875,
+    "Sallyᵖ": 0.5177393151753584,
+    "Willˢ": 1.075066668929665,
+    "Shaneᵖ": 0.5177393151753585,
+    "Albertoˢ": 1.0717980464028747,
+    "Gordoᵖ": 0.5177393151753586,
+    "Lucasˢ": 1.0750666689296657,
+    "4-": 0.195454545454546,
+    "Piece_9/16/2025 #1": 0.3942621682223723,
+    "Piece_9/16/2025 #2": 0.4354992587316582,
+    "Piece_9/16/2025 #3": 0.5252882482439817,
+    "Piece_9/16/2025 #4": 0.5052121974420797
+   },
+   "ci_lower": {
+    "Dougᵖ": 3.557158142116754,
+    "Stephenˢ": -9.480346722989372,
+    "Sallyᵖ": 3.5571581421168013,
+    "Willˢ": -0.6370154466330344,
+    "Shaneᵖ": 2.739247471355819,
+    "Albertoˢ": 1.6967849864927285,
+    "Gordoᵖ": 2.739247471355818,
+    "Lucasˢ": -7.229609863926649,
+    "4-": 75.33015089242468,
+    "Piece_9/16/2025 #1": 11.90008326164601,
+    "Piece_9/16/2025 #2": 14.27611634690022,
+    "Piece_9/16/2025 #3": 15.210239063079323,
+    "Piece_9/16/2025 #4": 12.790329474867297
+   },
+   "ci_upper": {
+    "Dougᵖ": 16.71416161955326,
+    "Stephenˢ": 17.75662410441638,
+    "Sallyᵖ": 16.7141616195533,
+    "Willˢ": 26.683018954835738,
+    "Shaneᵖ": 15.89625094879232,
+    "Albertoˢ": 28.933755813898472,
+    "Gordoᵖ": 15.896250948792321,
+    "Lucasˢ": 20.09042453754214,
+    "4-": 80.29712183484816,
+    "Piece_9/16/2025 #1": 21.9192349201722,
+    "Piece_9/16/2025 #2": 25.343201834917945,
+    "Piece_9/16/2025 #3": 28.55907911873892,
+    "Piece_9/16/2025 #4": 25.628988706950935
+   },
+   "df_resid": 1.0
+  },
+  "rlm": {
+   "columns": [
+    "Dougᵖ",
+    "Stephenˢ",
+    "Sallyᵖ",
+    "Willˢ",
+    "Shaneᵖ",
+    "Albertoˢ",
+    "Gordoᵖ",
+    "Lucasˢ",
+    "4-",
+    "Piece_9/16/2025 #1",
+    "Piece_9/16/2025 #2",
+    "Piece_9/16/2025 #3",
+    "Piece_9/16/2025 #4"
+   ],
+   "params": {
+    "Dougᵖ": 9.989204545454541,
+    "Stephenˢ": 4.051704545454527,
+    "Sallyᵖ": 9.989204545454555,
+    "Willˢ": 13.001704545454514,
+    "Shaneᵖ": 9.464204545454564,
+    "Albertoˢ": 15.401704545454578,
+    "Gordoᵖ": 9.464204545454564,
+    "Lucasˢ": 6.451704545454606,
+    "4-": 77.81363636363646,
+    "Piece_9/16/2025 #1": 16.90965909090908,
+    "Piece_9/16/2025 #2": 19.809659090909133,
+    "Piece_9/16/2025 #3": 21.884659090909118,
+    "Piece_9/16/2025 #4": 19.20965909090913
+   },
+   "bse": {
+    "Dougᵖ": 0.5380549820786673,
+    "Stephenˢ": 1.0752775984552505,
+    "Sallyᵖ": 0.5380549820786671,
+    "Willˢ": 1.0752775984552498,
+    "Shaneᵖ": 0.5380549820786671,
+    "Albertoˢ": 1.0752775984552498,
+    "Gordoᵖ": 0.5380549820786671,
+    "Lucasˢ": 1.0752775984552503,
+    "4-": 0.1954545454545475,
+    "Piece_9/16/2025 #1": 0.46804630375496176,
+    "Piece_9/16/2025 #2": 0.46804630375496153,
+    "Piece_9/16/2025 #3": 0.46804630375496165,
+    "Piece_9/16/2025 #4": 0.4680463037549614
+   },
+   "ci_lower": {
+    "Dougᵖ": 8.934636158878009,
+    "Stephenˢ": 1.9441991790995137,
+    "Sallyᵖ": 8.934636158878023,
+    "Willˢ": 10.894199179099502,
+    "Shaneᵖ": 8.409636158878032,
+    "Albertoˢ": 13.294199179099566,
+    "Gordoᵖ": 8.409636158878032,
+    "Lucasˢ": 4.3441991790995935,
+    "4-": 77.4305524939309,
+    "Piece_9/16/2025 #1": 15.992305192452262,
+    "Piece_9/16/2025 #2": 18.892305192452312,
+    "Piece_9/16/2025 #3": 20.967305192452297,
+    "Piece_9/16/2025 #4": 18.29230519245231
+   },
+   "ci_upper": {
+    "Dougᵖ": 11.043772932031073,
+    "Stephenˢ": 6.1592099118095405,
+    "Sallyᵖ": 11.043772932031088,
+    "Willˢ": 15.109209911809526,
+    "Shaneᵖ": 10.518772932031096,
+    "Albertoˢ": 17.50920991180959,
+    "Gordoᵖ": 10.518772932031096,
+    "Lucasˢ": 8.559209911809619,
+    "4-": 78.19672023334202,
+    "Piece_9/16/2025 #1": 17.8270129893659,
+    "Piece_9/16/2025 #2": 20.727012989365953,
+    "Piece_9/16/2025 #3": 22.802012989365938,
+    "Piece_9/16/2025 #4": 20.12701298936595
+   },
+   "df_resid": 1.0
+  },
+  "glm": {
+   "columns": [
+    "Dougᵖ",
+    "Stephenˢ",
+    "Sallyᵖ",
+    "Willˢ",
+    "Shaneᵖ",
+    "Albertoˢ",
+    "Gordoᵖ",
+    "Lucasˢ",
+    "4-",
+    "Piece_9/16/2025 #1",
+    "Piece_9/16/2025 #2",
+    "Piece_9/16/2025 #3",
+    "Piece_9/16/2025 #4"
+   ],
+   "params": {
+    "Dougᵖ": 10.135659880835007,
+    "Stephenˢ": 4.138138690713504,
+    "Sallyᵖ": 10.13565988083505,
+    "Willˢ": 13.023001754101351,
+    "Shaneᵖ": 9.31774921007407,
+    "Albertoˢ": 15.315270400195601,
+    "Gordoᵖ": 9.31774921007407,
+    "Lucasˢ": 6.430407336807745,
+    "4-": 77.81363636363642,
+    "Piece_9/16/2025 #1": 16.909659090909106,
+    "Piece_9/16/2025 #2": 19.809659090909083,
+    "Piece_9/16/2025 #3": 21.88465909090912,
+    "Piece_9/16/2025 #4": 19.209659090909117
+   },
+   "bse": {
+    "Dougᵖ": NaN,
+    "Stephenˢ": NaN,
+    "Sallyᵖ": NaN,
+    "Willˢ": NaN,
+    "Shaneᵖ": NaN,
+    "Albertoˢ": NaN,
+    "Gordoᵖ": NaN,
+    "Lucasˢ": NaN,
+    "4-": NaN,
+    "Piece_9/16/2025 #1": NaN,
+    "Piece_9/16/2025 #2": NaN,
+    "Piece_9/16/2025 #3": NaN,
+    "Piece_9/16/2025 #4": NaN
+   },
+   "ci_lower": {
+    "Dougᵖ": NaN,
+    "Stephenˢ": NaN,
+    "Sallyᵖ": NaN,
+    "Willˢ": NaN,
+    "Shaneᵖ": NaN,
+    "Albertoˢ": NaN,
+    "Gordoᵖ": NaN,
+    "Lucasˢ": NaN,
+    "4-": NaN,
+    "Piece_9/16/2025 #1": NaN,
+    "Piece_9/16/2025 #2": NaN,
+    "Piece_9/16/2025 #3": NaN,
+    "Piece_9/16/2025 #4": NaN
+   },
+   "ci_upper": {
+    "Dougᵖ": NaN,
+    "Stephenˢ": NaN,
+    "Sallyᵖ": NaN,
+    "Willˢ": NaN,
+    "Shaneᵖ": NaN,
+    "Albertoˢ": NaN,
+    "Gordoᵖ": NaN,
+    "Lucasˢ": NaN,
+    "4-": NaN,
+    "Piece_9/16/2025 #1": NaN,
+    "Piece_9/16/2025 #2": NaN,
+    "Piece_9/16/2025 #3": NaN,
+    "Piece_9/16/2025 #4": NaN
+   },
+   "df_resid": -1.875658045441794
+  }
+ },
+ "prep": {
+  "athletes": [
+   "Albertoˢ",
+   "Dougᵖ",
+   "Gordoᵖ",
+   "Lucasˢ",
+   "Sallyᵖ",
+   "Shaneᵖ",
+   "Stephenˢ",
+   "Willˢ"
+  ],
+  "rows": [
+   {
+    "date": "2025-09-16",
+    "piece": "9/16/2025 #1",
+    "km": 1.0,
+    "personnel": "Dougᵖ/Stephenˢ/Sallyᵖ/Willˢ",
+    "rigging": "p/s/p/s",
+    "shell_class": "4-",
+    "time_seconds": 208.5,
+    "time_per_500m": 104.25,
+    "closest_margin": 0.8000000000000114,
+    "closeness_factor": 0.9330329915368065,
+    "recency_factor": 1.0,
+    "total_weight": 0.9330329915368065,
+    "athlete_fractions": {
+     "Dougᵖ": 0.25,
+     "Stephenˢ": 0.25,
+     "Sallyᵖ": 0.25,
+     "Willˢ": 0.25
+    }
+   },
+   {
+    "date": "2025-09-16",
+    "piece": "9/16/2025 #1",
+    "km": 1.0,
+    "personnel": "Shaneᵖ/Albertoˢ/Gordoᵖ/Lucasˢ",
+    "rigging": "p/s/p/s",
+    "shell_class": "4-",
+    "time_seconds": 209.3,
+    "time_per_500m": 104.65,
+    "closest_margin": 0.8000000000000114,
+    "closeness_factor": 0.9330329915368065,
+    "recency_factor": 1.0,
+    "total_weight": 0.9330329915368065,
+    "athlete_fractions": {
+     "Shaneᵖ": 0.25,
+     "Albertoˢ": 0.25,
+     "Gordoᵖ": 0.25,
+     "Lucasˢ": 0.25
+    }
+   },
+   {
+    "date": "2025-09-16",
+    "piece": "9/16/2025 #2",
+    "km": 1.0,
+    "personnel": "Dougᵖ/Albertoˢ/Sallyᵖ/Lucasˢ",
+    "rigging": "p/s/p/s",
+    "shell_class": "4-",
+    "time_seconds": 216.7,
+    "time_per_500m": 108.35,
+    "closest_margin": 4.0,
+    "closeness_factor": 0.7071067811865476,
+    "recency_factor": 1.0,
+    "total_weight": 0.7071067811865476,
+    "athlete_fractions": {
+     "Dougᵖ": 0.25,
+     "Sallyᵖ": 0.25,
+     "Albertoˢ": 0.25,
+     "Lucasˢ": 0.25
+    }
+   },
+   {
+    "date": "2025-09-16",
+    "piece": "9/16/2025 #2",
+    "km": 1.0,
+    "personnel": "Shaneᵖ/Stephenˢ/Gordoᵖ/Willˢ",
+    "rigging": "p/s/p/s",
+    "shell_class": "4-",
+    "time_seconds": 212.7,
+    "time_per_500m": 106.35,
+    "closest_margin": 4.0,
+    "closeness_factor": 0.7071067811865476,
+    "recency_factor": 1.0,
+    "total_weight": 0.7071067811865476,
+    "athlete_fractions": {
+     "Stephenˢ": 0.25,
+     "Willˢ": 0.25,
+     "Shaneᵖ": 0.25,
+     "Gordoᵖ": 0.25
+    }
+   },
+   {
+    "date": "2025-09-16",
+    "piece": "9/16/2025 #3",
+    "km": 1.0,
+    "personnel": "Dougᵖ/Stephenˢ/Sallyᵖ/Lucasˢ",
+    "rigging": "p/s/p/s",
+    "shell_class": "4-",
+    "time_seconds": 214.1,
+    "time_per_500m": 107.05,
+    "closest_margin": 9.5,
+    "closeness_factor": 0.43906304009332486,
+    "recency_factor": 1.0,
+    "total_weight": 0.43906304009332486,
+    "athlete_fractions": {
+     "Dougᵖ": 0.25,
+     "Stephenˢ": 0.25,
+     "Sallyᵖ": 0.25,
+     "Lucasˢ": 0.25
+    }
+   },
+   {
+    "date": "2025-09-16",
+    "piece": "9/16/2025 #3",
+    "km": 1.0,
+    "personnel": "Shaneᵖ/Willˢ/Gordoᵖ/Albertoˢ",
+    "rigging": "p/s/p/s",
+    "shell_class": "4-",
+    "time_seconds": 223.6,
+    "time_per_500m": 111.8,
+    "closest_margin": 9.5,
+    "closeness_factor": 0.43906304009332486,
+    "recency_factor": 1.0,
+    "total_weight": 0.43906304009332486,
+    "athlete_fractions": {
+     "Willˢ": 0.25,
+     "Shaneᵖ": 0.25,
+     "Albertoˢ": 0.25,
+     "Gordoᵖ": 0.25
+    }
+   },
+   {
+    "date": "2025-09-16",
+    "piece": "9/16/2025 #4",
+    "km": 1.0,
+    "personnel": "Dougᵖ/Willˢ/Sallyᵖ/Albertoˢ",
+    "rigging": "p/s/p/s",
+    "shell_class": "4-",
+    "time_seconds": 217.7,
+    "time_per_500m": 108.85,
+    "closest_margin": 8.399999999999977,
+    "closeness_factor": 0.48296816446242374,
+    "recency_factor": 1.0,
+    "total_weight": 0.48296816446242374,
+    "athlete_fractions": {
+     "Dougᵖ": 0.25,
+     "Sallyᵖ": 0.25,
+     "Willˢ": 0.25,
+     "Albertoˢ": 0.25
+    }
+   },
+   {
+    "date": "2025-09-16",
+    "piece": "9/16/2025 #4",
+    "km": 1.0,
+    "personnel": "Shaneᵖ/Stephenˢ/Gordoᵖ/Lucasˢ",
+    "rigging": "p/s/p/s",
+    "shell_class": "4-",
+    "time_seconds": 209.3,
+    "time_per_500m": 104.65,
+    "closest_margin": 8.399999999999977,
+    "closeness_factor": 0.48296816446242374,
+    "recency_factor": 1.0,
+    "total_weight": 0.48296816446242374,
+    "athlete_fractions": {
+     "Stephenˢ": 0.25,
+     "Shaneᵖ": 0.25,
+     "Gordoᵖ": 0.25,
+     "Lucasˢ": 0.25
+    }
+   }
+  ]
+ }
+}

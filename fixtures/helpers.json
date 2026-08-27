@@ -1,0 +1,44 @@
+{
+ "time_to_seconds": {
+  "13:05": 785.0,
+  "10:38": 638.0,
+  "03:28.5": 208.5,
+  "17:50.3": 1070.3,
+  "00:59.95": 59.95,
+  "07:00": 420.0
+ },
+ "shell_class": [
+  {
+   "rigging": "c/p/s/p/s",
+   "shell_class": "4+"
+  },
+  {
+   "rigging": "p/s",
+   "shell_class": "2-"
+  },
+  {
+   "rigging": "x",
+   "shell_class": "1x"
+  },
+  {
+   "rigging": "x/x",
+   "shell_class": "2x"
+  },
+  {
+   "rigging": "x/x/c",
+   "shell_class": "2x+"
+  },
+  {
+   "rigging": "s/p/s/p",
+   "shell_class": "4-"
+  },
+  {
+   "rigging": "c/s/p/s/p/s/p/s/p",
+   "shell_class": "8+"
+  },
+  {
+   "rigging": "x/x/x/x",
+   "shell_class": "4x"
+  }
+ ]
+}
