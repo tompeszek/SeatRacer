@@ -3,14 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#991b1b" />
     <title>SeatRacer</title>
     <script>
-      // Apply the saved theme before first paint so dark mode never flashes light.
+      // Dark is the default theme; apply before first paint so it never
+      // flashes light. A stored light preference wins.
       try {
-        if (localStorage.getItem('theme') === 'dark')
+        if (localStorage.getItem('theme') !== 'light')
           document.documentElement.setAttribute('data-theme', 'dark')
-      } catch (e) {}
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+      }
     </script>
   </head>
   <body>

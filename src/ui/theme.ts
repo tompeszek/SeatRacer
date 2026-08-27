@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 
 export type Theme = 'light' | 'dark'
 
+// Dark is the default; a stored light preference wins.
 function readStoredTheme(): Theme {
   try {
-    return localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'
+    return localStorage.getItem('theme') === 'light' ? 'light' : 'dark'
   } catch {
-    return 'light'
+    return 'dark'
   }
 }
 
