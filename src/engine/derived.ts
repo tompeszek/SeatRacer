@@ -122,6 +122,18 @@ export interface ShellStat {
   coefficient: number
   lower: number
   upper: number
+  /**
+   * Predicted pace for this class with an average-coefficient rower in every
+   * seat (per side; coxswain included only when modeled). Comparable across
+   * classes, unlike the bare shell effect, which absorbs a class-dependent
+   * share of the crew level.
+   */
+  averageCrewPace: number
+  /**
+   * Pieces where this class raced at least one other class. Zero means the
+   * class's gap to other classes is not identified by the data at all.
+   */
+  crossClassPieces: number
 }
 
 export interface FittedRow {
@@ -247,12 +259,63 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
 
 export function shellStats(design: Design, fit: FitResult): ShellStat[] {
   const offset = design.athletes.length
-  return design.shellClasses.map((shellClass, i) => ({
-    shellClass,
-    coefficient: fit.params[offset + i],
-    lower: fit.ciLower[offset + i],
-    upper: fit.ciUpper[offset + i],
-  }))
+  // Mean coefficient per side.
+  const sums = new Map<string, { sum: number; n: number }>()
+  design.athletes.forEach((name, i) => {
+    const suffix = name[name.length - 1]
+    if (!sums.has(suffix)) sums.set(suffix, { sum: 0, n: 0 })
+    const s = sums.get(suffix)!
+    s.sum += fit.params[i]
+    s.n++
+  })
+  const avg = (suffix: string): number => {
+    const s = sums.get(suffix)
+    if (s && s.n > 0) return s.sum / s.n
+    // Fall back to the overall mean if this side has no athletes.
+    let total = 0
+    let n = 0
+    for (const v of sums.values()) {
+      total += v.sum
+      n += v.n
+    }
+    return n > 0 ? total / n : 0
+  }
+
+  // Pieces where a class races at least one other class: the only source of
+  // cross-class identification.
+  const pieceClasses = new Map<string, Set<string>>()
+  for (const row of design.rows) {
+    if (!pieceClasses.has(row.piece)) pieceClasses.set(row.piece, new Set())
+    pieceClasses.get(row.piece)!.add(row.shellClass)
+  }
+  const crossCount = new Map<string, number>()
+  for (const classes of pieceClasses.values()) {
+    if (classes.size < 2) continue
+    for (const cl of classes) crossCount.set(cl, (crossCount.get(cl) ?? 0) + 1)
+  }
+
+  return design.shellClasses.map((shellClass, i) => {
+    const rowers = parseInt(shellClass, 10) || 0
+    const hasCox = shellClass.includes('+')
+    const scull = shellClass.includes('x')
+    const seats = rowers + (hasCox ? 1 : 0)
+    let crew = 0
+    if (seats > 0) {
+      if (scull) crew += (rowers / seats) * avg('ˣ')
+      else crew += ((rowers / 2) / seats) * (avg('ᵖ') + avg('ˢ'))
+      // The cox seat contributes only when coxswains are modeled; otherwise
+      // its share drops, exactly as in training rows.
+      if (hasCox && sums.has('ᶜ')) crew += (1 / seats) * (sums.get('ᶜ')!.sum / sums.get('ᶜ')!.n)
+    }
+    return {
+      shellClass,
+      coefficient: fit.params[offset + i],
+      lower: fit.ciLower[offset + i],
+      upper: fit.ciUpper[offset + i],
+      averageCrewPace: fit.params[offset + i] + crew,
+      crossClassPieces: crossCount.get(shellClass) ?? 0,
+    }
+  })
 }
 
 export function fittedRows(design: Design, fit: FitResult): FittedRow[] {

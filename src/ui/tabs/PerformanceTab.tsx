@@ -57,15 +57,28 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
 ]
 
 function shellColumns(shells: ShellStat[]): Array<Column<ShellStat>> {
-  const fastest = Math.min(...shells.map((s) => s.coefficient))
+  const comparable = (s: ShellStat) => s.crossClassPieces > 0 || shells.length === 1
+  const comparableShells = shells.filter(comparable)
+  const fastestCrew = Math.min(...comparableShells.map((s) => s.averageCrewPace))
   return [
     { key: 'shell', label: 'Shell Class', value: (r) => r.shellClass },
     {
-      key: 'behind',
-      label: 'Behind',
+      key: 'crewBehind',
+      label: 'Behind (Average Crew)',
       num: true,
-      value: (r) => r.coefficient - fastest,
-      render: (r) => (r.coefficient - fastest > 0 ? `+${fmt(r.coefficient - fastest)}` : 'Fastest'),
+      value: (r) => (comparable(r) ? r.averageCrewPace - fastestCrew : Infinity),
+      render: (r) =>
+        !comparable(r)
+          ? 'Not comparable'
+          : r.averageCrewPace - fastestCrew > 0.05
+            ? `+${fmt(r.averageCrewPace - fastestCrew)}`
+            : 'Fastest',
+    },
+    {
+      key: 'cross',
+      label: 'Cross-Class Pieces',
+      num: true,
+      value: (r) => r.crossClassPieces,
     },
     {
       key: 'ci',
@@ -125,13 +138,18 @@ export function PerformanceTab({ result, fitting, controls, allShells, onControl
           </div>
           <h2>Shell Classes</h2>
           <p className="hint">
-            How much pace each boat type gives up to the fastest type, in seconds per 500m.
+            Behind (Average Crew) compares boat types fairly: the predicted pace of each class
+            with an average rower in every seat, as a gap behind the fastest class. These gaps
+            are learned only from pieces where different classes race each other, counted in
+            Cross-Class Pieces; a class that never races another class shows Not comparable,
+            because the data cannot separate that boat's speed from the quality of the crews who
+            happened to row it.
           </p>
-          <div style={{ maxWidth: 380 }}>
+          <div style={{ maxWidth: 520 }}>
             <SortableTable
               columns={shellColumns(result.shells)}
               rows={result.shells}
-              defaultSort="behind"
+              defaultSort="crewBehind"
               rowKey={(r) => r.shellClass}
             />
           </div>
