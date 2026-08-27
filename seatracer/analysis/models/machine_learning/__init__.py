@@ -1,3 +1,0 @@
-# from seatracer.analysis.models.machine_learning.rf_analysis import RandomForestAnalysis
-# from seatracer.analysis.models.machine_learning.xgboost_analysis import XGBoostAnalysis
-from seatracer.analysis.models.machine_learning.en_analysis import ElasticNetAnalysis

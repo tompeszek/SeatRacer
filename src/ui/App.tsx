@@ -293,7 +293,7 @@ export function App() {
           ))}
         </nav>
       </div>
-      <main className="container">
+      <main className={`container${tab === 'Performance' ? ' wide' : ''}`}>
         {error && <p className="error">{error}</p>}
         {tab === 'Data' && (
           <DataTab

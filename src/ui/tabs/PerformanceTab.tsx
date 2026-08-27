@@ -42,7 +42,7 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
   { key: 'races', label: 'Races', num: true, value: (r) => r.races },
   {
     key: 'maxcorr',
-    label: 'Most Confounded With',
+    label: 'Confounded With',
     value: (r) => r.maxCorrelation,
     render: (r) => (r.maxCorrelatedWith ? `${r.maxCorrelatedWith} (${fmt(r.maxCorrelation, 2)})` : ''),
   },
@@ -97,7 +97,7 @@ export function PerformanceTab({ result, fitting, controls, allShells, onControl
             absolute number. Port and starboard are estimated separately and are not comparable
             to each other, so each side has its own table. Uncertainty is the give-or-take on
             the estimate; when an athlete almost always rows with the same partners, the data
-            cannot separate them and the uncertainty widens (see Most Confounded With).
+            cannot separate them and the uncertainty widens (see Confounded With).
           </p>
           <div className="side-cols">
             {sides.map((side) => (
@@ -116,12 +116,14 @@ export function PerformanceTab({ result, fitting, controls, allShells, onControl
           <p className="hint">
             How much pace each boat type gives up to the fastest type, in seconds per 500m.
           </p>
-          <SortableTable
-            columns={shellColumns(result.shells)}
-            rows={result.shells}
-            defaultSort="behind"
-            rowKey={(r) => r.shellClass}
-          />
+          <div style={{ maxWidth: 380 }}>
+            <SortableTable
+              columns={shellColumns(result.shells)}
+              rows={result.shells}
+              defaultSort="behind"
+              rowKey={(r) => r.shellClass}
+            />
+          </div>
         </>
       )}
     </>

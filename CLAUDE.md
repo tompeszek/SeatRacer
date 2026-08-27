@@ -4,107 +4,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Application Overview
 
-SeatRacer is a rowing lineup analysis and optimization tool. It analyzes seat
-racing data to evaluate athlete performance, predict lineups, and provide
-statistical insights for rowing teams.
+SeatRacer is a rowing lineup analysis tool: seat racing results in, each
+athlete out as a linear factor on boat pace with uncertainty, used to compare
+athletes within a side and predict future lineup speeds. It is a browser-only
+static app (React + Vite + TypeScript); all computation runs in Web Workers.
+There is no server and no backend.
 
-The UI is built with **NiceGUI** (`seatracer/ng/`, entrypoint `main.py`). It was
-migrated from an earlier Streamlit UI, which has been removed (recoverable from
-git history if ever needed). See `README.md` for the architecture overview and
-`DEPLOYMENT.md` for Railway notes.
+Style and engineering conventions follow the house guide at
+`C:\projects\WEB_APP_STYLE_GUIDE.md`. Notable house rules: no icons or emojis
+anywhere, pill groups for small choice sets, dense sortable tables,
+token-driven dark mode, plain-words metric explanations.
 
-## Running the Application
+## Commands
 
-### Primary Command
 ```bash
-python main.py
-```
-
-The app is available at http://localhost:8088 (binds `0.0.0.0`, reads `$PORT`).
-
-### Installation
-```bash
-pip install -r requirements.txt
+npm run dev         # dev server at http://localhost:8088
+npm test            # engine test suite (golden fixtures + property tests)
+npm run typecheck   # strict TypeScript check
+npm run build       # static production build in dist/
 ```
 
 ## Architecture
 
-### Core Components
+- `src/engine/` is pure TypeScript with no DOM access: parsing, prep,
+  weighting, design matrix, solvers (SVD minimum-norm WLS, Huber IRLS, Lp
+  IRLS, ridge-toward-center), walk-forward evaluation, influence, and derived
+  display stats. Everything user-visible flows from `fitModel` (model.ts) or
+  `walkForward` (evaluate.ts).
+- `src/workers/` wraps the engine for off-main-thread use; `src/ui/` is the
+  React app with one global stylesheet (`src/index.css`).
+- Bundled datasets live in `public/data/` (CSV schema: Race Session (date),
+  Piece, KM, Rigging, Personnel, Result).
 
-**Analysis Engine (`seatracer/analysis/`)**
-- `analysis_base.py` - Abstract base class for all analysis models
-- `registry.py` - ModelRegistry for managing different analysis model types
-- `temporal_analysis.py` - Time-series analysis functionality
+## Statistical invariants (do not break)
 
-**Analysis Models (`seatracer/analysis/models/`)**
-- `statsmodels/` - Statistical models (OLS, GLM, RLM, WLS)
-- `machine_learning/` - ML models (Random Forest, XGBoost, Elastic Net)
-- `gradient_descent/` - Custom gradient descent implementation
-- `trueskill/` - TrueSkill-based rating system
+- Port and starboard athletes are separate parameters; never compare or rank
+  across sides anywhere in the UI.
+- Coefficients and shell effects are displayed only as gaps behind the leader
+  (plus an uncertainty half-width), never as absolute numbers.
+- The design matrix is rank-deficient by construction; solvers use a
+  minimum-norm solution with a deliberate 1e-8 relative singular-value cutoff
+  (see solve.ts for why statsmodels' 1e-15 is inside the noise band).
+- Model evaluation is forward-in-time only, scored on within-piece margins
+  (piece conditions cancel); same-day and future-day horizons are reported
+  separately.
+- Coxswains are excluded from the model by default.
 
-**Optimization (`seatracer/optimize/`)**
-- `lineup_optimizer.py` - Primary lineup optimization using analysis results
-- `lineup_optimizer2.py` - Alternative optimization implementation
+## The golden-fixture gate
 
-**User Interface (`seatracer/ng/`)**
-- `app.py` - Dashboard: sidebar controls + tabs + `recompute()` pipeline
-- `state.py` - `AppState` per-client session state
-- `ui_common.py` - AG Grid / ECharts builders, probability-matrix and confidence maths
-- `temporal_plot.py` - Plotly builder for the Over Time tab
-- `loo_worker.py` - ProcessPoolExecutor worker for leave-one-out refits
-- `tabs/` - one module per tab (Data, Performance, Individual, ...)
-
-**Utilities (`seatracer/utils/`)**
-- `data_handler.py` - Data loading and processing
-- `grouping.py` - Athlete correlation and grouping logic  
-- `helpers.py` - Utility functions for time conversion, shell classification
-
-### Model Registry System
-
-The application uses a decorator-based model registry (`ModelRegistry`) to dynamically register analysis models. Models are registered with metadata like:
-- Custom weighting support
-- Stern bias capability  
-- Athlete display settings
-- UI ordering
-
-Example registration:
-```python
-@ModelRegistry.register(
-    key="ols",
-    name="Linear Regression", 
-    uses_custom_weighting=True,
-    show_athletes=True
-)
-class OLSAnalysis(StatsModelBase):
-    # Implementation
-```
-
-### Data Flow
-
-1. **Data Loading**: CSV files with seat racing results loaded via the Data tab (`seatracer/ng/tabs/data_tab.py`)
-2. **Analysis**: Selected model processes data with user-configured parameters
-3. **Optimization**: `LineupOptimizer` uses analysis results to find optimal lineups
-4. **Visualization**: Results displayed across multiple UI tabs
-
-### Key Data Structures
-
-- Race data includes: athletes, shell classes, race sessions, margins, positions
-- Analysis outputs: athlete coefficients, performance metrics, correlations
-- Optimization results: lineup predictions, performance estimates
-
-## Configuration
-
-### Model Parameters
-Models support various weighting options:
-- **Recency weighting** - Recent races weighted more heavily
-- **Close race weighting** - Closer margins get higher weight  
-- **Stern bias** - Position-based performance adjustments
-- **Correlation filtering** - Remove highly correlated athletes
-
-## Development Notes
-
-- Per-client UI state lives in `seatracer/ng/state.py` (`AppState`); the engine is framework-agnostic and must not import any UI library
-- Hot-reloading friendly model registry design
-- Modular tab design allows independent development of each view
-- All analysis models inherit from `Analysis` base class
-- Data preprocessing includes shell class filtering and rigging assignment
+`fixtures/*.json` are committed outputs of the original Python engine
+(pandas + statsmodels, deleted from the working tree; see git history at tag
+points before the rewrite). `src/engine/golden.test.ts` asserts the TypeScript
+engine reproduces them. Never regenerate or edit fixtures to make a test pass;
+a mismatch means the engine changed behavior. The engine's prep formulas
+(weights, clips, fractions) are 1:1 ports and are fixture-verified.

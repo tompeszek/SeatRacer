@@ -1,9 +1,0 @@
-nicegui
-plotly
-pandas
-numpy
-scipy
-scikit-learn
-statsmodels
-networkx
-patsy

@@ -1,5 +1,13 @@
 # SeatRacer Rewrite Plan: Browser-Only TypeScript App
 
+**Status: completed 2026-08-27.** All milestones done; the Python engine and
+NiceGUI app are deleted (recoverable from git history), the golden fixtures
+remain committed, and the gate passes. Changes agreed during the build:
+coxswains excluded by default; port and starboard rendered as side-by-side
+per-side tables; all effects displayed as gaps behind the leader rather than
+absolute coefficients; the old Lineup Testing tab folded into New Lineup;
+Optimal Lineups (a placeholder) and the Debug tab dropped as planned.
+
 Agreed direction (2026-08-27): replace the NiceGUI/Python app with a static,
 browser-only TypeScript app. No server, no roundtrips. All computation runs in
 the browser in a background thread. The Python engine is deleted at the end,

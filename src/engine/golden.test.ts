@@ -15,7 +15,7 @@ import type { WeightSettings } from './types'
 
 const ROOT = join(__dirname, '..', '..')
 const FIXTURES = join(ROOT, 'fixtures')
-const DATA = join(ROOT, 'seatracer', 'data')
+const DATA = join(ROOT, 'public', 'data')
 
 interface ModelFixture {
   columns: string[]

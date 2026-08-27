@@ -22,7 +22,7 @@ const SETTINGS: WeightSettings = {
 }
 
 function loadDesign() {
-  const csv = readFileSync(join(ROOT, 'seatracer', 'data', 'Olympic Selection - 2012.csv'), 'utf-8')
+  const csv = readFileSync(join(ROOT, 'public', 'data', 'Olympic Selection - 2012.csv'), 'utf-8')
   const rows = prepRows(parseRaceCsv(csv), SETTINGS)
   return buildDesign(rows, SETTINGS)
 }

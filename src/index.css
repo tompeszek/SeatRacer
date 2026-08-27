@@ -220,6 +220,11 @@ body {
   overflow-x: hidden;
 }
 
+/* Tabs that lay tables side by side get the full window. */
+.container.wide {
+  max-width: 1600px;
+}
+
 .page-header {
   display: flex;
   align-items: center;
@@ -664,17 +669,29 @@ select.plain:focus {
 
 .side-cols {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 0 14px;
   align-items: flex-start;
 }
 
 .side-col {
-  flex: 1;
+  flex: 1 1 440px;
   min-width: 0;
 }
 
 .side-col h2 {
   margin-top: 0.4rem;
+}
+
+/* Side-by-side tables run denser so both sides fit without inner scroll. */
+.side-col .table-card th {
+  padding: 7px 6px;
+  font-size: 11px;
+}
+
+.side-col .table-card td {
+  padding: 5px 6px;
+  font-size: 12.5px;
 }
 
 @media (max-width: 900px) {

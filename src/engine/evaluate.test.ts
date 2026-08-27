@@ -21,7 +21,7 @@ const SETTINGS: WeightSettings = {
 }
 
 function loadRaw(name: string) {
-  return parseRaceCsv(readFileSync(join(ROOT, 'seatracer', 'data', name), 'utf-8'))
+  return parseRaceCsv(readFileSync(join(ROOT, 'public', 'data', name), 'utf-8'))
 }
 
 describe('fitCandidate fast solver', () => {
