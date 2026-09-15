@@ -9,7 +9,7 @@
       // Dark is the default theme; apply before first paint so it never
       // flashes light. A stored light preference wins.
       try {
-        if (localStorage.getItem('theme') !== 'light')
+        if (localStorage.getItem('themeChoice') !== 'light')
           document.documentElement.setAttribute('data-theme', 'dark')
       } catch (e) {
         document.documentElement.setAttribute('data-theme', 'dark')
