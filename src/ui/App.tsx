@@ -42,9 +42,12 @@ const TABS = [
   'Model Lab',
 ] as const
 type Tab = (typeof TABS)[number]
-/** Tabs shown directly in the bar; the rest sit behind More. */
+/**
+ * Tabs on the main row, split by how often they are opened; the rest sit
+ * behind More on a second row, alphabetically (guide Section 11.1).
+ */
 const PRIMARY_TABS: Tab[] = ['Data', 'Performance']
-const MORE_TABS = TABS.filter((t) => !PRIMARY_TABS.includes(t))
+const MORE_TABS = TABS.filter((t) => !PRIMARY_TABS.includes(t)).sort()
 
 interface Upload {
   name: string
@@ -72,7 +75,6 @@ export function App() {
   const [theme, setTheme] = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
-  const moreRef = useRef<HTMLDivElement>(null)
   const [tab, setTab] = useState<Tab>('Data')
   // Only an explicit pick is stored. The key is new because the old
   // 'dataset' key was written on every visit, which would pin returning
@@ -120,18 +122,14 @@ export function App() {
   if (!client.current) client.current = new FitClient()
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Menus close on outside click and Escape (guide Section 21.2).
+  // The menu closes on outside click and Escape (guide Section 21.2).
   useEffect(() => {
-    if (!menuOpen && !moreOpen) return
+    if (!menuOpen) return
     const onDown = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false)
-        setMoreOpen(false)
-      }
+      if (e.key === 'Escape') setMenuOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
@@ -139,7 +137,11 @@ export function App() {
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('keydown', onKey)
     }
-  }, [menuOpen, moreOpen])
+  }, [menuOpen])
+
+  // The More row stays open while one of its tabs is showing.
+  const inMore = MORE_TABS.includes(tab)
+  const moreShown = moreOpen || inMore
 
   // Load the selected dataset's text (bundled via fetch, uploads from state).
   useEffect(() => {
@@ -326,32 +328,24 @@ export function App() {
               {t}
             </button>
           ))}
-          <div className="tab-more-wrap" ref={moreRef}>
-            <button
-              className={`tab${MORE_TABS.includes(tab) ? ' active' : ''}`}
-              aria-expanded={moreOpen}
-              onClick={() => setMoreOpen(!moreOpen)}
-            >
-              {MORE_TABS.includes(tab) ? tab : 'More'}
-            </button>
-            {moreOpen && (
-              <div className="header-menu tab-menu">
-                {MORE_TABS.map((t) => (
-                  <button
-                    key={t}
-                    className={`menu-item${t === tab ? ' active' : ''}`}
-                    onClick={() => {
-                      setTab(t)
-                      setMoreOpen(false)
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <button
+            className={`tab${inMore ? ' active' : ''}`}
+            aria-expanded={moreShown}
+            aria-controls="tab-bar-more"
+            onClick={() => setMoreOpen(!moreShown)}
+          >
+            {moreShown ? 'More ▴' : 'More ▾'}
+          </button>
         </nav>
+        {moreShown && (
+          <nav className="tab-bar tab-bar-more" id="tab-bar-more">
+            {MORE_TABS.map((t) => (
+              <button key={t} className={`tab${t === tab ? ' active' : ''}`} onClick={() => setTab(t)}>
+                {t}
+              </button>
+            ))}
+          </nav>
+        )}
       </div>
       <main className={`container${tab === 'Performance' ? ' wide' : ''}`}>
         {error && <p className="error">{error}</p>}
