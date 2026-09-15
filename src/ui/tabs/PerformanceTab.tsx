@@ -141,18 +141,9 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
       ) : (
         <>
           <p className="hint">
-            Behind is each athlete's estimated cost in boat pace, in seconds per 500m, relative
-            to the fastest athlete on the same side; only these gaps are meaningful, never an
-            absolute number. Port and starboard are estimated separately and are not comparable
-            to each other, so each side has its own table. Uncertainty is the give-or-take on
-            the estimate of the athlete's gap from their side's average; when an athlete almost
-            always rows with the same partners, the data cannot separate them and the uncertainty
-            widens (see Confounded With). An athlete who never raced against anyone on their side
-            in a way the model can separate shows an infinite uncertainty and no gap or rank: the
-            data says nothing about them. Rank 80% is
-            the range of ranks the athlete plausibly holds once everyone's uncertainty is
-            accounted for together: 1000 simulated redraws of all estimates at once, including
-            how they move together, keeping the middle 80% of each athlete's simulated ranks.
+            Gaps behind the fastest athlete on the same side, in seconds per 500m; port and
+            starboard are never compared. ∞ means the data cannot separate that athlete from
+            anyone. Rank 80% is the range of ranks that fits the data.
           </p>
           <div className="side-cols">
             {sides.map((side) => (
