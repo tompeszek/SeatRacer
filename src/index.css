@@ -419,6 +419,55 @@ td.strong {
   max-width: 760px;
 }
 
+.options-box.collapsed {
+  padding: 0;
+  gap: 0;
+}
+
+.options-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 8px 12px;
+  margin: -12px -12px 0;
+  width: calc(100% + 24px);
+  font-family: inherit;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.options-box.collapsed .options-bar {
+  margin: 0;
+  width: 100%;
+}
+
+.options-bar-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+.options-bar-summary {
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.options-bar-action {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
 .opt-row {
   display: flex;
   align-items: center;

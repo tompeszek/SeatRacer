@@ -89,7 +89,7 @@ export const DEFAULT_CONTROLS: ControlState = {
  * and reset back to these; only this file changes the defaults themselves.
  */
 export const DATASET_DEFAULTS: Record<string, Partial<ControlState>> = {
-  '2026 SDRC HOCR Club 4+ Selection.csv': { shellEffects: true },
+  '2026 SDRC HOCR Club 4+ Selection.csv': { shellEffects: true, coxswains: true },
 }
 
 export function defaultControlsFor(dataset: string): ControlState {
@@ -98,4 +98,18 @@ export function defaultControlsFor(dataset: string): ControlState {
 
 export function sameControls(a: ControlState, b: ControlState): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
+}
+
+/** Short plain-words summary of what is switched on, for the collapsed bar. */
+export function summarizeControls(c: ControlState): string {
+  const parts: string[] = []
+  if (c.loss !== 'Squared') parts.push(c.loss === 'Lp' ? `Lp ${c.lpP}` : c.loss)
+  if (c.shrinkage !== 'Off') parts.push(`${c.shrinkage} (${c.strength})`)
+  if (c.recency !== 'Off') parts.push(`Recency ${c.recency}`)
+  if (c.close !== 'Off') parts.push(`Close races ${c.close}`)
+  if (c.stern !== 'Off') parts.push(`Stern bias ${c.stern}`)
+  if (c.coxswains) parts.push('Coxswains')
+  if (c.shellEffects) parts.push('Named shells')
+  if (c.shells) parts.push(c.shells.join(', '))
+  return parts.length ? parts.join(' / ') : 'Standard model'
 }

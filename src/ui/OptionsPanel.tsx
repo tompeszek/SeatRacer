@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import type { ControlState } from './options'
 import {
   sameControls,
+  summarizeControls,
   CLOSE_RACES_OPTIONS,
   LOSS_OPTIONS,
   LP_P_OPTIONS,
@@ -62,13 +64,31 @@ export function OptionsSection(props: {
   )
 }
 
+/**
+ * Collapsed by default behind a header carrying a live summary (style guide
+ * Section 12.1), so the model controls do not crowd the page.
+ */
 export function OptionsPanel({ controls, defaults, allShells, onChange }: Props) {
+  const [open, setOpen] = useState(false)
   const set = (patch: Partial<ControlState>) => onChange({ ...controls, ...patch })
   const selectedShells = controls.shells ?? allShells
   const modified = !sameControls(controls, defaults)
 
+  const bar = (
+    <button className="options-bar" onClick={() => setOpen(!open)} aria-expanded={open}>
+      <span className="options-bar-label">Model Settings</span>
+      <span className="options-bar-summary">
+        {summarizeControls(controls)}
+        {modified ? ' (changed from dataset defaults)' : ''}
+      </span>
+      <span className="options-bar-action">{open ? 'Hide' : 'Show'}</span>
+    </button>
+  )
+  if (!open) return <div className="options-box collapsed">{bar}</div>
+
   return (
     <div className="options-box">
+      {bar}
       <div className="opt-row">
         <span className="opt-label">Settings</span>
         <span className="opt-caption">

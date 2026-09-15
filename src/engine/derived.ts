@@ -260,12 +260,15 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
     if (list) list.push(s)
     else groups.set(s.suffix, [s])
   }
+  // Athletes the data cannot separate get identical coefficients up to
+  // solver noise (1e-13 or so); treat them as exact ties so they share a rank.
+  const TIE = 1e-9
   for (const list of groups.values()) {
     const fastest = Math.min(...list.map((s) => s.coefficient))
-    const sorted = [...list].sort((a, b) => a.coefficient - b.coefficient)
     for (const s of list) {
-      s.speedBehind = s.coefficient - fastest
-      s.rank = sorted.findIndex((x) => x.coefficient === s.coefficient) + 1
+      const behind = s.coefficient - fastest
+      s.speedBehind = behind < TIE ? 0 : behind
+      s.rank = 1 + list.filter((x) => x.coefficient < s.coefficient - TIE).length
       s.totalInPosition = list.length
     }
   }
