@@ -49,6 +49,7 @@ export const BUNDLED_DATASETS = [
   'SDRC HOCR 2025 rate adjusted.csv',
   'SDRC HOCR 2025 raw.csv',
   'SDRC Masters Men HOCR Selection - 2024.csv',
+  '2026 SDRC HOCR Club 4+ Selection.csv',
   'fall_2025.csv',
 ]
 
