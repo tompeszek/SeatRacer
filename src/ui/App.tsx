@@ -8,6 +8,7 @@ import { FitClient } from './fitClient'
 import { useTheme } from './theme'
 import {
   BUNDLED_DATASETS,
+  DEFAULT_DATASET,
   CLOSE_RACES_OPTIONS,
   DEFAULT_CONTROLS,
   RECENCY_OPTIONS,
@@ -68,9 +69,16 @@ export function App() {
   const [theme, setTheme] = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('Data')
+  // Only an explicit pick is stored. The key is new because the old
+  // 'dataset' key was written on every visit, which would pin returning
+  // visitors to whatever the default used to be.
   const [datasetName, setDatasetName] = useState<string>(
-    () => loadStored('dataset', { name: BUNDLED_DATASETS[0] }).name,
+    () => loadStored('datasetChoice', { name: DEFAULT_DATASET }).name,
   )
+  const selectDataset = useCallback((name: string) => {
+    setDatasetName(name)
+    store('datasetChoice', { name })
+  }, [])
   const [uploads, setUploads] = useState<Upload[]>(() => loadStored('uploads', { list: [] as Upload[] }).list)
   const [csvText, setCsvText] = useState<string | null>(null)
   const [controls, setControls] = useState<ControlState>(() => loadStored('controls', DEFAULT_CONTROLS))
@@ -107,7 +115,6 @@ export function App() {
 
   // Load the selected dataset's text (bundled via fetch, uploads from state).
   useEffect(() => {
-    store('dataset', { name: datasetName })
     const upload = uploads.find((u) => u.name === datasetName)
     if (upload) {
       setCsvText(upload.text)
@@ -245,9 +252,9 @@ export function App() {
       const next = [...uploads.filter((u) => u.name !== name), { name, text }]
       setUploads(next)
       store('uploads', { list: next })
-      setDatasetName(name)
+      selectDataset(name)
     },
-    [uploads],
+    [uploads, selectDataset],
   )
 
   const onErgs = useCallback((next: Record<string, string>) => {
@@ -300,7 +307,7 @@ export function App() {
             rows={rawRows}
             datasetNames={datasetNames}
             selected={datasetName}
-            onSelect={setDatasetName}
+            onSelect={selectDataset}
             onUpload={onUpload}
             controls={controls}
             allShells={allShells}

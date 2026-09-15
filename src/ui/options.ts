@@ -53,6 +53,8 @@ export const BUNDLED_DATASETS = [
   'fall_2025.csv',
 ]
 
+export const DEFAULT_DATASET = '2026 SDRC HOCR Club 4+ Selection.csv'
+
 export interface ControlState {
   recency: keyof typeof RECENCY_OPTIONS
   close: keyof typeof CLOSE_RACES_OPTIONS
