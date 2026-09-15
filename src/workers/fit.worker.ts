@@ -9,7 +9,6 @@ import {
   athleteStats,
   shellStats,
   namedShellStats,
-  blockStats,
   fittedRows,
   athletePairs,
   biasStats,
@@ -38,7 +37,6 @@ export interface FitPayload {
   athletes: ReturnType<typeof athleteStats>
   shells: ReturnType<typeof shellStats>
   namedShells: ReturnType<typeof namedShellStats>
-  blocks: ReturnType<typeof blockStats>
   fitted: ReturnType<typeof fittedRows>
   pairs: ReturnType<typeof athletePairs>
   bias: ReturnType<typeof biasStats>
@@ -79,7 +77,6 @@ export function runFit(req: FitRequest): FitPayload {
       athletes: [],
       shells: [],
       namedShells: [],
-      blocks: [],
       fitted: [],
       pairs: [],
       bias: [],
@@ -106,7 +103,6 @@ export function runFit(req: FitRequest): FitPayload {
     athletes: athleteStats(design, fit),
     shells: shellStats(design, fit),
     namedShells: namedShellStats(design, fit),
-    blocks: blockStats(design, fit),
     fitted: fittedRows(design, fit),
     pairs: athletePairs(design, fit, tCdf),
     bias: biasStats(design, fit, tCdf),

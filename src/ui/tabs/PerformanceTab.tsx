@@ -1,5 +1,5 @@
 import type { FitPayload } from '../../workers/fit.worker'
-import type { AthleteStat, BlockStat, NamedShellStat, ShellStat } from '../../engine/derived'
+import type { AthleteStat, NamedShellStat, ShellStat } from '../../engine/derived'
 import { SortableTable, type Column } from '../SortableTable'
 import { OptionsSection } from '../OptionsPanel'
 import type { ControlState } from '../options'
@@ -60,36 +60,6 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
         ? `${r.maxCorrelatedWith}${r.maxCorrelatedOthers ? ` +${r.maxCorrelatedOthers}` : ''} (${fmt(r.maxCorrelation, 2)})`
         : '',
   },
-]
-
-const BLOCK_COLUMNS: Array<Column<BlockStat>> = [
-  { key: 'members', label: 'Rowers', value: (r) => r.members.join(' + ') },
-  {
-    key: 'behind',
-    label: 'Behind',
-    num: true,
-    value: (r) => r.behind,
-    render: (r) => (!r.comparable ? '' : r.behind > 0.05 ? `+${fmt(r.behind)}` : 'Fastest'),
-  },
-  {
-    key: 'ci',
-    label: 'Uncertainty',
-    num: true,
-    value: (r) => (r.upper - r.lower) / 2,
-    render: (r) =>
-      !r.comparable ? '∞' : Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : '',
-  },
-  {
-    key: 'vsavg',
-    label: 'vs Average Rower',
-    num: true,
-    value: (r) => (Number.isNaN(r.vsAverage) ? Infinity : r.vsAverage),
-    render: (r) =>
-      Number.isNaN(r.vsAverage)
-        ? '∞'
-        : `${r.vsAverage > 0 ? '+' : ''}${fmt(r.vsAverage)}${Number.isFinite(r.vsLower) ? ` ±${fmt((r.vsUpper - r.vsLower) / 2)}` : ''}`,
-  },
-  { key: 'races', label: 'Races', num: true, value: (r) => r.races },
 ]
 
 const NAMED_SHELL_COLUMNS: Array<Column<NamedShellStat>> = [
@@ -190,19 +160,6 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
               </div>
             ))}
           </div>
-          {result.blocks.length > 0 && (
-            <>
-              <h2>Always Together</h2>
-              <div style={{ maxWidth: 640 }}>
-                <SortableTable
-                  columns={BLOCK_COLUMNS}
-                  rows={result.blocks}
-                  defaultSort="behind"
-                  rowKey={(r) => r.members.join('|')}
-                />
-              </div>
-            </>
-          )}
           {result.namedShells.length > 0 && (
             <>
               <h2>Shells</h2>
