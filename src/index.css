@@ -202,6 +202,26 @@ body {
   transition: color 0.15s, background 0.15s;
 }
 
+/* The More tab: the current secondary tab's name when one is open, else
+   "More"; its dropdown reuses the account-menu styling. */
+.tab-more-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.tab-menu {
+  left: 0;
+  right: auto;
+  top: 100%;
+  min-width: 170px;
+  z-index: 20;
+}
+
+.menu-item.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .tab:hover {
   background: var(--hover);
   color: var(--fg);
