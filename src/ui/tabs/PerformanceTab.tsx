@@ -140,11 +140,12 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
         <div className="empty-state">Load a dataset on the Data tab to see athlete estimates.</div>
       ) : (
         <>
-          <p className="hint">
-            Gaps behind the fastest athlete on the same side, in seconds per 500m; port and
-            starboard are never compared. ∞ means the data cannot separate that athlete from
-            anyone. Rank 80% is the range of ranks that fits the data.
-          </p>
+          <ul className="hint-list">
+            <li>Behind: seconds per 500m slower than the fastest rower on the same side.</li>
+            <li>Port and starboard are never compared with each other.</li>
+            <li>∞: the data cannot tell this rower apart from anyone.</li>
+            <li>Rank 80%: the range of ranks the data supports.</li>
+          </ul>
           <div className="side-cols">
             {sides.map((side) => (
               <div className="side-col" key={side}>
@@ -161,12 +162,10 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
           {result.namedShells.length > 0 && (
             <>
               <h2>Shells</h2>
-              <p className="hint">
-                Behind is each named boat's estimated cost in pace, in seconds per 500m, relative
-                to the fastest boat, with the crews' own effects taken out. When a boat always
-                carries the same rowers, the data cannot tell the boat from those rowers, so it
-                shows no gap and an infinite uncertainty.
-              </p>
+              <ul className="hint-list">
+                <li>Behind: seconds per 500m slower than the fastest boat, crews accounted for.</li>
+                <li>∞: the boat always had the same crew, so the data cannot tell them apart.</li>
+              </ul>
               <div style={{ maxWidth: 520 }}>
                 <SortableTable
                   columns={NAMED_SHELL_COLUMNS}
@@ -178,14 +177,11 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
             </>
           )}
           <h2>Shell Classes</h2>
-          <p className="hint">
-            Behind (Average Crew) compares boat types fairly: the predicted pace of each class
-            with an average rower in every seat, as a gap behind the fastest class. These gaps
-            are learned only from pieces where different classes race each other, counted in
-            Cross-Class Pieces; a class that never races another class shows Not comparable,
-            because the data cannot separate that boat's speed from the quality of the crews who
-            happened to row it.
-          </p>
+          <ul className="hint-list">
+            <li>Behind: seconds per 500m slower than the fastest boat type, with an average crew.</li>
+            <li>Only pieces where different boat types raced each other count.</li>
+            <li>Not comparable: this boat type never raced another type.</li>
+          </ul>
           <div style={{ maxWidth: 520 }}>
             <SortableTable
               columns={shellColumns(result.shells)}
