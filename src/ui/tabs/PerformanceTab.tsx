@@ -30,16 +30,17 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
     label: 'Behind',
     num: true,
     value: (r) => r.speedBehind,
-    render: (r) => (r.speedBehind > 0 ? `+${fmt(r.speedBehind)}` : 'Fastest'),
+    render: (r) => (!r.comparable ? '' : r.speedBehind > 0 ? `+${fmt(r.speedBehind)}` : 'Fastest'),
   },
   {
     key: 'ci',
     label: 'Uncertainty',
     num: true,
     value: (r) => (r.upper - r.lower) / 2,
-    render: (r) => (Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : ''),
+    render: (r) =>
+      !r.comparable ? '∞' : Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : '',
   },
-  { key: 'rank', label: 'Rank', num: true, value: (r) => r.rank },
+  { key: 'rank', label: 'Rank', num: true, value: (r) => r.rank || NaN, render: (r) => (r.rank || '') },
   {
     key: 'rankrange',
     label: 'Rank 80%',
@@ -140,8 +141,11 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
             to the fastest athlete on the same side; only these gaps are meaningful, never an
             absolute number. Port and starboard are estimated separately and are not comparable
             to each other, so each side has its own table. Uncertainty is the give-or-take on
-            the estimate; when an athlete almost always rows with the same partners, the data
-            cannot separate them and the uncertainty widens (see Confounded With). Rank 80% is
+            the estimate of the athlete's gap from their side's average; when an athlete almost
+            always rows with the same partners, the data cannot separate them and the uncertainty
+            widens (see Confounded With). An athlete who never raced against anyone on their side
+            in a way the model can separate shows an infinite uncertainty and no gap or rank: the
+            data says nothing about them. Rank 80% is
             the range of ranks the athlete plausibly holds once everyone's uncertainty is
             accounted for together: 1000 simulated redraws of all estimates at once, including
             how they move together, keeping the middle 80% of each athlete's simulated ranks.

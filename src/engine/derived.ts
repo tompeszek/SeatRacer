@@ -3,6 +3,7 @@
 // actual rows, and lineup prediction. Ports the display logic of
 // analysis_base.py (_add_side_aware_speed, _add_correlations,
 // predict_lineup) without the correlation-based dropping.
+import { Matrix, SingularValueDecomposition } from 'ml-matrix'
 import type { Design, FitResult } from './types'
 import { boatFractions } from './weights'
 
@@ -19,10 +20,22 @@ export interface AthleteStat {
   coefficient: number
   lower: number
   upper: number
-  /** Seconds per 500m behind the fastest athlete with the same suffix. */
+  /**
+   * Seconds per 500m behind the fastest athlete in the same comparison
+   * group; NaN when the athlete is not comparable to anyone.
+   */
   speedBehind: number
+  /** Rank within the comparison group; 0 when not comparable. */
   rank: number
   totalInPosition: number
+  /**
+   * Athletes on the same side whose gaps the data pins down share a group.
+   * An athlete alone in their group (never raced against anyone on their
+   * side in a way the model can separate) is not comparable: their gap and
+   * uncertainty are unknowable, not small.
+   */
+  group: number
+  comparable: boolean
   /** 80% range of plausible ranks within the side, from joint simulation. */
   rankLow: number | null
   rankHigh: number | null
@@ -32,6 +45,45 @@ export interface AthleteStat {
   maxCorrelatedWith: string
   minCorrelation: number
   minCorrelatedWith: string
+}
+
+/**
+ * Comparison groups from the design matrix alone. A gap b_i - b_j is
+ * estimable iff e_i - e_j lies in the row space of X; with V_k the kept
+ * right singular vectors, that is iff the rows of V_k for i and j differ by
+ * a vector of squared length 2 (the full length of e_i - e_j). Comparability
+ * is transitive, so union-find within each side yields the groups.
+ */
+export function comparisonGroups(design: Design): number[] {
+  const nAthletes = design.athletes.length
+  const parent = design.athletes.map((_, i) => i)
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])))
+  if (nAthletes > 0 && design.x.length > 0) {
+    const X = new Matrix(design.x.map((r) => Array.from(r)))
+    const svd = new SingularValueDecomposition(X, { autoTranspose: true })
+    const s = svd.diagonal
+    const V = svd.rightSingularVectors
+    const cut = 1e-8 * (s.length ? Math.max(...s) : 0)
+    const kept: number[] = []
+    s.forEach((v, j) => {
+      if (v > cut) kept.push(j)
+    })
+    const p = design.athletes.map((_, i) => kept.map((j) => V.get(i, j)))
+    for (let i = 0; i < nAthletes; i++) {
+      for (let j = i + 1; j < nAthletes; j++) {
+        if (design.athletes[i].slice(-1) !== design.athletes[j].slice(-1)) continue
+        let d2 = 0
+        for (let m = 0; m < kept.length; m++) d2 += (p[i][m] - p[j][m]) ** 2
+        if (Math.abs(d2 - 2) < 1e-6) parent[find(i)] = find(j)
+      }
+    }
+  }
+  const ids = new Map<number, number>()
+  return design.athletes.map((_, i) => {
+    const root = find(i)
+    if (!ids.has(root)) ids.set(root, ids.size)
+    return ids.get(root)!
+  })
 }
 
 /** Deterministic PRNG (mulberry32) for reproducible simulations. */
@@ -58,6 +110,7 @@ export function simulateRankRanges(
   draws = 1000,
   alpha = 0.2,
   seed = 20260827,
+  groupOf: number[] = comparisonGroups(design),
 ): Map<string, [number, number]> | null {
   const covHalf = fit.covHalf
   if (!covHalf || covHalf.length === 0) return null
@@ -81,11 +134,10 @@ export function simulateRankRanges(
     return r * Math.cos(2 * Math.PI * v)
   }
 
-  const groups = new Map<string, number[]>()
-  design.athletes.forEach((name, i) => {
-    const suffix = name[name.length - 1]
-    if (!groups.has(suffix)) groups.set(suffix, [])
-    groups.get(suffix)!.push(i)
+  const groups = new Map<number, number[]>()
+  design.athletes.forEach((_, i) => {
+    if (!groups.has(groupOf[i])) groups.set(groupOf[i], [])
+    groups.get(groupOf[i])!.push(i)
   })
 
   const ranks: Int16Array[] = design.athletes.map(() => new Int16Array(draws))
@@ -240,9 +292,11 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
       coefficient: fit.params[i],
       lower: fit.ciLower[i],
       upper: fit.ciUpper[i],
-      speedBehind: 0,
+      speedBehind: NaN,
       rank: 0,
-      totalInPosition: 0,
+      totalInPosition: 1,
+      group: 0,
+      comparable: false,
       rankLow: null,
       rankHigh: null,
       races: races[i],
@@ -253,31 +307,65 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
     }
   })
 
-  // Speed behind the fastest and rank, within each suffix group.
-  const groups = new Map<string, AthleteStat[]>()
-  for (const s of stats) {
-    const list = groups.get(s.suffix)
+  // Speed behind the fastest and rank, within each comparison group. An
+  // athlete alone in their group has no estimable gap to anyone: their
+  // interval is unbounded and they carry no rank.
+  const groupOf = comparisonGroups(design)
+  const groups = new Map<number, AthleteStat[]>()
+  stats.forEach((s, i) => {
+    s.group = groupOf[i]
+    const list = groups.get(s.group)
     if (list) list.push(s)
-    else groups.set(s.suffix, [s])
-  }
-  // Athletes the data cannot separate get identical coefficients up to
-  // solver noise (1e-13 or so); treat them as exact ties so they share a rank.
+    else groups.set(s.group, [s])
+  })
+  // Solver noise (1e-13 or so) separates coefficients the data ties; treat
+  // differences below this as exact ties so they share a rank.
   const TIE = 1e-9
+  // Same t multiplier the solver used for its intervals.
+  let tMult = NaN
+  for (let c = 0; c < fit.bse.length; c++) {
+    if (fit.bse[c] > 0 && Number.isFinite(fit.ciUpper[c])) {
+      tMult = (fit.ciUpper[c] - fit.ciLower[c]) / (2 * fit.bse[c])
+      break
+    }
+  }
   for (const list of groups.values()) {
+    if (list.length < 2) {
+      list[0].lower = -Infinity
+      list[0].upper = Infinity
+      continue
+    }
     const fastest = Math.min(...list.map((s) => s.coefficient))
+    const members = list.map((s) => athletes.indexOf(s.name))
     for (const s of list) {
       const behind = s.coefficient - fastest
+      s.comparable = true
       s.speedBehind = behind < TIE ? 0 : behind
       s.rank = 1 + list.filter((x) => x.coefficient < s.coefficient - TIE).length
       s.totalInPosition = list.length
+      // Interval on the athlete's gap from the group average, which is
+      // estimable even though the athlete's own coefficient is not.
+      if (fit.covHalf && Number.isFinite(tMult)) {
+        const own = athletes.indexOf(s.name)
+        const m = fit.covHalf[0].length
+        let variance = 0
+        for (let j = 0; j < m; j++) {
+          let acc = fit.covHalf[own][j]
+          for (const idx of members) acc -= fit.covHalf[idx][j] / members.length
+          variance += acc * acc
+        }
+        const half = tMult * Math.sqrt(variance)
+        s.lower = s.coefficient - half
+        s.upper = s.coefficient + half
+      }
     }
   }
 
-  const rankRanges = simulateRankRanges(design, fit)
+  const rankRanges = simulateRankRanges(design, fit, undefined, undefined, undefined, groupOf)
   if (rankRanges) {
     for (const s of stats) {
       const range = rankRanges.get(s.name)
-      if (range) {
+      if (range && s.comparable) {
         s.rankLow = range[0]
         s.rankHigh = range[1]
       }
