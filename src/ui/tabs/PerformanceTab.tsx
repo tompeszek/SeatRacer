@@ -163,7 +163,7 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
             <>
               <h2>Shells</h2>
               <ul className="hint-list">
-                <li>Behind: seconds per 500m slower than the fastest boat, crews accounted for.</li>
+                <li>Behind: seconds per 500m slower than the fastest boat.</li>
                 <li>∞: the boat always had the same crew, so the data cannot tell them apart.</li>
               </ul>
               <div style={{ maxWidth: 520 }}>
