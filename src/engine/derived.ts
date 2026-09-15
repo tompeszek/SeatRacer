@@ -43,6 +43,8 @@ export interface AthleteStat {
   races: number
   maxCorrelation: number
   maxCorrelatedWith: string
+  /** Other athletes tied (within noise) with maxCorrelatedWith. */
+  maxCorrelatedOthers: number
   minCorrelation: number
   minCorrelatedWith: string
 }
@@ -286,6 +288,8 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
         minWith = athletes[j]
       }
     }
+    let tied = 0
+    for (let j = 0; j < athletes.length; j++) if (j !== i && corr[i][j] > maxC - 1e-9) tied++
     return {
       name,
       suffix,
@@ -302,6 +306,7 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
       races: races[i],
       maxCorrelation: athletes.length > 1 ? maxC : 0,
       maxCorrelatedWith: maxWith,
+      maxCorrelatedOthers: Math.max(0, tied - 1),
       minCorrelation: athletes.length > 1 ? minC : 0,
       minCorrelatedWith: minWith,
     }

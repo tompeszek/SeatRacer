@@ -54,7 +54,10 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
     key: 'maxcorr',
     label: 'Confounded With',
     value: (r) => r.maxCorrelation,
-    render: (r) => (r.maxCorrelatedWith ? `${r.maxCorrelatedWith} (${fmt(r.maxCorrelation, 2)})` : ''),
+    render: (r) =>
+      r.maxCorrelatedWith
+        ? `${r.maxCorrelatedWith}${r.maxCorrelatedOthers ? ` +${r.maxCorrelatedOthers}` : ''} (${fmt(r.maxCorrelation, 2)})`
+        : '',
   },
 ]
 
