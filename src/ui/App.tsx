@@ -49,6 +49,13 @@ type Tab = (typeof TABS)[number]
 const PRIMARY_TABS: Tab[] = ['Data', 'Performance']
 const MORE_TABS = TABS.filter((t) => !PRIMARY_TABS.includes(t)).sort()
 
+// Each tab is its own URL ("/new-lineup"); nginx serves index.html for any
+// path, so a reload or a shared link lands on the right tab.
+const tabPath = (t: Tab) => `/${t.toLowerCase().replace(/\s+/g, '-')}`
+function tabFromPath(pathname: string): Tab {
+  return TABS.find((t) => tabPath(t) === pathname.replace(/\/+$/, '')) ?? 'Data'
+}
+
 interface Upload {
   name: string
   text: string
@@ -71,11 +78,46 @@ function store(key: string, value: unknown) {
   }
 }
 
+/** A tab is a real link to its URL; plain clicks route in-app. */
+function TabLink({ tab, active, onSelect }: { tab: Tab; active: boolean; onSelect: (t: Tab) => void }) {
+  return (
+    <a
+      href={tabPath(tab)}
+      className={`tab${active ? ' active' : ''}`}
+      aria-current={active ? 'page' : undefined}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        onSelect(tab)
+      }}
+    >
+      {tab}
+    </a>
+  )
+}
+
 export function App() {
   const [theme, setTheme] = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
-  const [tab, setTab] = useState<Tab>('Data')
+  const [tab, setTabState] = useState<Tab>(() => tabFromPath(window.location.pathname))
+  const setTab = useCallback((t: Tab) => {
+    if (window.location.pathname !== tabPath(t)) window.history.pushState(null, '', tabPath(t))
+    setTabState(t)
+  }, [])
+  // Back and Forward move between tabs; a bare "/" is rewritten to the
+  // Data tab's URL so history entries are all real tab paths.
+  useEffect(() => {
+    if (window.location.pathname !== tabPath(tab)) window.history.replaceState(null, '', tabPath(tab))
+    const onPop = () => setTabState(tabFromPath(window.location.pathname))
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  // Landing on a far-right tab never hides it (guide Section 11).
+  useEffect(() => {
+    document.querySelector('.tab-bar .tab.active')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [tab])
   // Only an explicit pick is stored. The key is new because the old
   // 'dataset' key was written on every visit, which would pin returning
   // visitors to whatever the default used to be.
@@ -324,9 +366,7 @@ export function App() {
       <div className="tab-bar-wrap">
         <nav className="tab-bar">
           {PRIMARY_TABS.map((t) => (
-            <button key={t} className={`tab${t === tab ? ' active' : ''}`} onClick={() => setTab(t)}>
-              {t}
-            </button>
+            <TabLink key={t} tab={t} active={t === tab} onSelect={setTab} />
           ))}
           <button
             className={`tab${inMore ? ' active' : ''}`}
@@ -340,9 +380,7 @@ export function App() {
         {moreShown && (
           <nav className="tab-bar tab-bar-more" id="tab-bar-more">
             {MORE_TABS.map((t) => (
-              <button key={t} className={`tab${t === tab ? ' active' : ''}`} onClick={() => setTab(t)}>
-                {t}
-              </button>
+              <TabLink key={t} tab={t} active={t === tab} onSelect={setTab} />
             ))}
           </nav>
         )}

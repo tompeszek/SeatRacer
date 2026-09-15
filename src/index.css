@@ -184,6 +184,7 @@ body {
 }
 
 .tab {
+  text-decoration: none;
   flex: 0 0 auto;
   padding: 11px 18px 9px;
   min-width: 84px;
