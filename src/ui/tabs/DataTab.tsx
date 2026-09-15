@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import type { RaceRow } from '../../engine/types'
 import { SortableTable, type Column } from '../SortableTable'
+import { parseDate, timeToSeconds } from '../../engine/prep'
 import { OptionsSection } from '../OptionsPanel'
 import type { ControlState } from '../options'
 
@@ -15,18 +16,46 @@ interface Props {
   onControls: (c: ControlState) => void
 }
 
+// Sort values that tolerate malformed cells; NaN sorts last.
+function dateValue(r: RaceRow): number {
+  try {
+    return parseDate(r.dateRaw).getTime()
+  } catch {
+    return NaN
+  }
+}
+
+function resultValue(r: RaceRow): number {
+  try {
+    return timeToSeconds(r.result)
+  } catch {
+    return NaN
+  }
+}
+
+const orDefault = (n: number) => (Number.isNaN(n) ? Infinity : n)
+
+/** Default order: date, then piece number, then fastest result first. */
+function compareRows(a: RaceRow, b: RaceRow): number {
+  return (
+    orDefault(dateValue(a)) - orDefault(dateValue(b)) ||
+    orDefault(a.pieceNumber) - orDefault(b.pieceNumber) ||
+    orDefault(resultValue(a)) - orDefault(resultValue(b))
+  )
+}
+
 const COLUMNS: Array<Column<RaceRow & { index: number }>> = [
-  { key: 'date', label: 'Session', value: (r) => r.dateRaw },
+  { key: 'date', label: 'Session', value: dateValue, render: (r) => r.dateRaw },
   { key: 'piece', label: 'Piece', num: true, value: (r) => r.pieceNumber },
   { key: 'km', label: 'KM', num: true, value: (r) => r.km },
   { key: 'rigging', label: 'Rigging', value: (r) => r.rigging },
   { key: 'personnel', label: 'Personnel', value: (r) => r.personnel },
-  { key: 'result', label: 'Result', num: true, value: (r) => r.result },
+  { key: 'result', label: 'Result', num: true, value: resultValue, render: (r) => r.result },
 ]
 
 export function DataTab({ rows, datasetNames, selected, onSelect, onUpload, controls, allShells, onControls }: Props) {
   const fileInput = useRef<HTMLInputElement>(null)
-  const indexed = rows.map((r, index) => ({ ...r, index }))
+  const indexed = rows.map((r, index) => ({ ...r, index })).sort(compareRows)
 
   return (
     <>
