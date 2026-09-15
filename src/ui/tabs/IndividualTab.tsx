@@ -36,13 +36,11 @@ export function IndividualTab({ influence, running, progress, onRun, hasData }: 
           {running ? 'Computing...' : 'Compute Influence'}
         </button>
       </div>
-      <p className="hint">
-        For every race piece, the model is refit with that piece removed; the table shows how the
-        selected athlete's estimate moves, in seconds per 500m. A single piece that moves an
-        estimate by a lot means that estimate leans heavily on one race: treat it with care.
-        Negative means removing the piece makes the athlete look faster (the piece was hurting
-        their estimate). Results reflect the model options currently set on the Data tab.
-      </p>
+      <ul className="hint-list">
+        <li>How much the athlete's estimate moves when one piece is left out, in seconds per 500m.</li>
+        <li>A big move means the estimate leans on that one race.</li>
+        <li>Negative: the athlete looks faster without that piece.</li>
+      </ul>
       {running && progress && (
         <p className="hint">
           Computing: {progress[0]} of {progress[1]} refits complete.

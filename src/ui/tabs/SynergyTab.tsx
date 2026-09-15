@@ -44,11 +44,10 @@ export function SynergyTab({ result }: Props) {
         </div>
       ) : (
         <>
-          <p className="hint">
-            Together is the mean gap between actual and modeled pace for boats containing both
-            athletes, in seconds per 500m. Negative means the pair's boats keep beating the
-            model: the two may be faster together than their individual estimates suggest.
-          </p>
+          <ul className="hint-list">
+            <li>Together: how far the pair's boats ran from the model, in seconds per 500m.</li>
+            <li>Negative: they keep beating the model, so they may be faster together.</li>
+          </ul>
           <div className="opt-row" style={{ margin: '8px 0' }}>
             <span className="opt-label">P-Value</span>
             <div className="pills">

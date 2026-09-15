@@ -118,12 +118,10 @@ export function OverTimeTab({ series, running, progress, onRun, hasData }: Props
           {running ? 'Computing...' : 'Compute Trends'}
         </button>
       </div>
-      <p className="hint">
-        The model is refit on all data up to each session date. Each line is an athlete's
-        estimate relative to the average of their side at that date, in seconds per 500m: below
-        zero is faster than the side's average. Absolute estimates from different dates are not
-        comparable, which is why the chart shows relative standing.
-      </p>
+      <ul className="hint-list">
+        <li>Each line is an athlete's standing against their side's average, refit at each date.</li>
+        <li>Below zero is faster than average, in seconds per 500m.</li>
+      </ul>
       {running && progress && (
         <p className="hint">
           Computing: {progress[0]} of {progress[1]} refits complete.

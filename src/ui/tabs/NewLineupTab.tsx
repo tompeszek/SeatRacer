@@ -95,12 +95,11 @@ export function NewLineupTab({ result, sternWeight }: Props) {
   return (
     <>
       <h1>New Lineup</h1>
-      <p className="hint">
-        Predicted pace combines the shell class effect and each athlete's coefficient. Each seat
-        only offers athletes who row that side: port and starboard estimates are separate and
-        cannot stand in for each other. Piece conditions are unknown for a future race, so
-        compare lineups against each other rather than reading the pace as an absolute time.
-      </p>
+      <ul className="hint-list">
+        <li>Predicted pace adds up the boat type and each athlete.</li>
+        <li>Each seat only offers athletes who row that side.</li>
+        <li>Compare lineups against each other; the pace is not a race time.</li>
+      </ul>
       <div className="opt-row" style={{ margin: '8px 0' }}>
         <span className="opt-label">Shell</span>
         <div className="pills">

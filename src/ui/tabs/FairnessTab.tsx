@@ -87,13 +87,11 @@ export function FairnessTab({ result }: Props) {
         <div className="empty-state">Load a dataset on the Data tab to check prediction bias.</div>
       ) : (
         <>
-          <p className="hint">
-            Average Error is the mean gap between a boat's actual pace and the model's, across
-            every boat the athlete sat in, in seconds per 500m. Negative (blue) means their boats
-            keep going faster than the model expects; positive (red) means slower. Gray bars show
-            no statistically consistent bias. A consistent bias suggests the model is crediting
-            or blaming the athlete's usual crewmates for something this athlete brings.
-          </p>
+          <ul className="hint-list">
+            <li>Average Error: how far the athlete's boats ran from the model, in seconds per 500m.</li>
+            <li>Blue: their boats keep beating the model. Red: keep falling short.</li>
+            <li>Gray: no consistent pattern.</li>
+          </ul>
           {significant.length === 0 && (
             <p className="hint">No statistically consistent bias detected; showing every athlete.</p>
           )}

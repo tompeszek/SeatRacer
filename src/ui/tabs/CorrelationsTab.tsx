@@ -31,13 +31,11 @@ export function CorrelationsTab({ result }: Props) {
         <div className="empty-state">Load a dataset on the Data tab to see athlete correlations.</div>
       ) : (
         <>
-          <p className="hint">
-            How entangled two athletes' racing histories are. A correlation near 1 means they
-            almost always rowed together, so their individual contributions cannot be separated:
-            the model can only estimate their sum, and both estimates carry wide uncertainty.
-            Shrinkage keeps such estimates tame; more racing apart is what actually separates
-            them. Pairs below 0.2 are not listed.
-          </p>
+          <ul className="hint-list">
+            <li>How often two athletes rowed in the same boat.</li>
+            <li>Near 1: they almost always rowed together, so the model cannot tell them apart.</li>
+            <li>Racing apart is the only fix. Pairs below 0.2 are not listed.</li>
+          </ul>
           <SortableTable
             columns={COLUMNS}
             rows={pairs}

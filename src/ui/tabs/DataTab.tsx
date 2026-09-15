@@ -98,11 +98,11 @@ export function DataTab({ rows, datasetNames, selected, onSelect, onUpload, cont
         <span className="count-pill">{rows.length} results</span>
       </div>
       <OptionsSection controls={controls} defaults={defaults} allShells={allShells} onControls={onControls} />
-      <p className="hint">
-        Each row is one boat's result in one piece. Uploaded files need the columns Race Session
-        (date), Piece, KM, Rigging, Personnel, and Result. An optional Shell column names the boat
-        so it can be modeled with Named Shells.
-      </p>
+      <ul className="hint-list">
+        <li>Each row is one boat's result in one piece.</li>
+        <li>Uploads need the columns Race Session (date), Piece, KM, Rigging, Personnel, Result.</li>
+        <li>An optional Shell column names the boat.</li>
+      </ul>
       {rows.length === 0 ? (
         <div className="empty-state">Select or upload a dataset to begin.</div>
       ) : (

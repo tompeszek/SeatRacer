@@ -39,12 +39,11 @@ export function ValidationTab({ result }: Props) {
         <div className="empty-state">Load a dataset on the Data tab to check the model fit.</div>
       ) : (
         <>
-          <p className="hint">
-            On the data it was fit to, the model misses each boat's pace by {fmt(meanAbs)} seconds
-            per 500m on average, and by {fmt(maxAbs)} at worst. Delta is actual minus model:
-            positive means the boat went slower than modeled. These are in-sample numbers; the
-            Model Lab measures honest forward prediction.
-          </p>
+          <ul className="hint-list">
+            <li>Model misses each boat by {fmt(meanAbs)} seconds per 500m on average, {fmt(maxAbs)} at worst.</li>
+            <li>Delta: actual minus model. Positive means the boat went slower than modeled.</li>
+            <li>These are fit-to-the-data numbers; the Model Lab tests real prediction.</li>
+          </ul>
           <div className="controls">
             <label className="form-field">
               Filter by athlete

@@ -71,12 +71,11 @@ export function AthletesTab({ rows, ergs, onErgs }: Props) {
           }}
         />
       </div>
-      <p className="hint">
-        2k erg times, format m:ss.s, one per athlete. They are used only when Shrinkage is set to
-        Toward Ergs: an athlete's estimate is pulled toward their erg-implied pace, so ergs break
-        ties the racing data cannot settle and stand in for athletes with little racing. A CSV
-        upload needs the columns Athlete and 2k Erg.
-      </p>
+      <ul className="hint-list">
+        <li>2k erg times, one per athlete, as m:ss.s.</li>
+        <li>Used only when Shrinkage is set to Toward Ergs.</li>
+        <li>A CSV upload needs the columns Athlete and 2k Erg.</li>
+      </ul>
       <div className="table-card" style={{ maxWidth: 420 }}>
         <table>
           <thead>

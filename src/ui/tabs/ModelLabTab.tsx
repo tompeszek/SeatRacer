@@ -94,17 +94,12 @@ export function ModelLabTab({ csvText, settings, controls }: Props) {
           {running ? 'Evaluating...' : 'Evaluate Models'}
         </button>
       </div>
-      <p className="hint">
-        Every model is tested forward in time only: for each race piece, the model is fit on all
-        earlier pieces and asked to predict the margins between boats in that piece. Miss is the
-        median absolute margin error in seconds per 500m (lower is better). Picks is how often
-        the model named the faster boat of a pair (50% is a coin flip). Future-Day scores
-        predictions of a day the model has not seen at all; Same-Day scores later pieces of a day
-        partly seen, which favors models that track day-of form. Excluded counts boat pairs a
-        model could not predict because an athlete had never been seen; ridge models predict
-        newcomers at their prior instead. All models use the weighting options currently set on
-        the Data tab.
-      </p>
+      <ul className="hint-list">
+        <li>Each model predicts every piece using only earlier pieces.</li>
+        <li>Miss: typical error in seconds per 500m, lower is better. Picks: how often it named the faster boat.</li>
+        <li>Future-Day: predicting a day it never saw. Same-Day: later pieces of a day it partly saw.</li>
+        <li>Excluded: boat pairs with an athlete the model had never seen.</li>
+      </ul>
       {running && progress && (
         <p className="hint">
           Evaluating: {progress[0]} of {progress[1]} fits complete.
@@ -141,10 +136,10 @@ export function ModelLabTab({ csvText, settings, controls }: Props) {
           </div>
           {detail && (
             <>
-              <p className="hint">
-                The pieces {detail.label} predicted worst, by mean absolute margin error. A piece
-                that every model misses badly usually had something unusual happen in it.
-              </p>
+              <ul className="hint-list">
+                <li>Pieces {detail.label} predicted worst.</li>
+                <li>A piece every model misses usually had something unusual happen.</li>
+              </ul>
               <SortableTable
                 columns={[
                   { key: 'piece', label: 'Piece', value: (r: (typeof detail.worstPieces)[number]) => r.piece },
