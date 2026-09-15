@@ -282,6 +282,20 @@ h3 {
   margin: 2px 0;
 }
 
+/* Tag on rows the data cannot separate; the color matches the group's figures. */
+.group-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: #ffffff;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .hint.tiny {
   font-size: 10px;
 }

@@ -9,6 +9,7 @@ import {
   athleteStats,
   shellStats,
   namedShellStats,
+  lumpStats,
   fittedRows,
   athletePairs,
   biasStats,
@@ -37,6 +38,7 @@ export interface FitPayload {
   athletes: ReturnType<typeof athleteStats>
   shells: ReturnType<typeof shellStats>
   namedShells: ReturnType<typeof namedShellStats>
+  lumps: ReturnType<typeof lumpStats>
   fitted: ReturnType<typeof fittedRows>
   pairs: ReturnType<typeof athletePairs>
   bias: ReturnType<typeof biasStats>
@@ -77,6 +79,7 @@ export function runFit(req: FitRequest): FitPayload {
       athletes: [],
       shells: [],
       namedShells: [],
+      lumps: [],
       fitted: [],
       pairs: [],
       bias: [],
@@ -99,10 +102,18 @@ export function runFit(req: FitRequest): FitPayload {
     ergCenters: req.spec.ergCenters ? new Map(req.spec.ergCenters) : undefined,
   }
   const fit = fitModel(design, spec)
+  const lumps = lumpStats(design, fit)
+  const lumpOf = new Map<string, number>()
+  lumps.forEach((l) => l.members.forEach((m) => lumpOf.set(m, l.id)))
+  const athletes = athleteStats(design, fit)
+  for (const a of athletes) a.lump = lumpOf.get(a.name) ?? null
+  const namedShells = namedShellStats(design, fit)
+  for (const s of namedShells) s.lump = lumpOf.get(s.shell) ?? null
   return {
-    athletes: athleteStats(design, fit),
+    athletes,
     shells: shellStats(design, fit),
-    namedShells: namedShellStats(design, fit),
+    namedShells,
+    lumps,
     fitted: fittedRows(design, fit),
     pairs: athletePairs(design, fit, tCdf),
     bias: biasStats(design, fit, tCdf),

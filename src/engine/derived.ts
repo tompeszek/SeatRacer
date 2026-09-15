@@ -36,6 +36,8 @@ export interface AthleteStat {
    */
   group: number
   comparable: boolean
+  /** Index into the fit's lumps when this athlete is inseparable from others. */
+  lump: number | null
   /** 80% range of plausible ranks within the side, from joint simulation. */
   rankLow: number | null
   rankHigh: number | null
@@ -99,6 +101,232 @@ export function columnGroups(
     if (!ids.has(root)) ids.set(root, ids.size)
     return ids.get(root)!
   })
+}
+
+/**
+ * Test whether a contrast c'b is estimable: c must lie in the row space of
+ * X, i.e. keep its full length when projected onto the kept right singular
+ * vectors.
+ */
+function estimableTest(design: Design): (c: Float64Array) => boolean {
+  if (design.x.length === 0) return () => false
+  const X = new Matrix(design.x.map((r) => Array.from(r)))
+  const svd = new SingularValueDecomposition(X, { autoTranspose: true })
+  const s = svd.diagonal
+  const V = svd.rightSingularVectors
+  const cut = 1e-8 * (s.length ? Math.max(...s) : 0)
+  const kept: number[] = []
+  s.forEach((v, j) => {
+    if (v > cut) kept.push(j)
+  })
+  const k = design.columns.length
+  return (c) => {
+    let len2 = 0
+    for (let i = 0; i < k; i++) len2 += c[i] * c[i]
+    if (len2 === 0) return true
+    let proj2 = 0
+    for (const j of kept) {
+      let acc = 0
+      for (let i = 0; i < k; i++) if (c[i] !== 0) acc += c[i] * V.get(i, j)
+      proj2 += acc * acc
+    }
+    return Math.abs(proj2 - len2) < 1e-6 * len2
+  }
+}
+
+/** The t multiplier the solver used for its intervals (NaN if none). */
+function intervalMultiplier(fit: FitResult): number {
+  for (let c = 0; c < fit.bse.length; c++) {
+    if (fit.bse[c] > 0 && Number.isFinite(fit.ciUpper[c])) {
+      return (fit.ciUpper[c] - fit.ciLower[c]) / (2 * fit.bse[c])
+    }
+  }
+  return NaN
+}
+
+/**
+ * A lump: athletes, coxswains and named shells that never appeared apart,
+ * so the data cannot tell them from each other. What it can tell is how
+ * the lump as a whole compares, per seat, with the fastest free rower on
+ * each side (and the fastest free shell); failing that, with other lumps.
+ */
+export interface Lump {
+  id: number
+  /** Column names: athletes with suffix, shells as the bare boat name. */
+  members: string[]
+  /** Per-seat gap behind the fastest, in coefficient units; NaN if unknown. */
+  behind: number
+  lower: number
+  upper: number
+  known: boolean
+}
+
+export function lumpStats(design: Design, fit: FitResult): Lump[] {
+  const { athletes, shells, x } = design
+  const nA = athletes.length
+  const shellOffset = nA + design.shellClasses.length
+  const k = design.columns.length
+  const n = x.length
+  const cols = [...athletes.map((_, i) => i), ...shells.map((_, i) => shellOffset + i)]
+  const column = (c: number) => Float64Array.from({ length: n }, (_, r) => x[r][c])
+  const vec = new Map(cols.map((c) => [c, column(c)]))
+  const together = (a: number, b: number) => {
+    const va = vec.get(a)!
+    const vb = vec.get(b)!
+    let ab = 0
+    let aa = 0
+    let bb = 0
+    for (let r = 0; r < n; r++) {
+      ab += va[r] * vb[r]
+      aa += va[r] ** 2
+      bb += vb[r] ** 2
+    }
+    return aa > 0 && bb > 0 && ab * ab > (1 - 1e-9) * aa * bb
+  }
+  const parent = new Map(cols.map((c) => [c, c]))
+  const find = (c: number): number => {
+    const p = parent.get(c)!
+    if (p === c) return c
+    const root = find(p)
+    parent.set(c, root)
+    return root
+  }
+  for (let i = 0; i < cols.length; i++) {
+    for (let j = i + 1; j < cols.length; j++) {
+      if (together(cols[i], cols[j])) parent.set(find(cols[i]), find(cols[j]))
+    }
+  }
+  const byRoot = new Map<number, number[]>()
+  for (const c of cols) {
+    const r = find(c)
+    if (!byRoot.has(r)) byRoot.set(r, [])
+    byRoot.get(r)!.push(c)
+  }
+  const lumpCols = [...byRoot.values()].filter((m) => m.length > 1)
+  if (lumpCols.length === 0) return []
+  const inLump = new Set(lumpCols.flat())
+
+  // Free entities: separable athletes and shells outside every lump.
+  const groupOf = comparisonGroups(design)
+  const freeAthletes = athletes
+    .map((_, i) => i)
+    .filter((i) => !inLump.has(i) && groupOf.filter((g) => g === groupOf[i]).length > 1)
+  const fastestFree = new Map<string, number>()
+  for (const i of freeAthletes) {
+    const side = athletes[i].slice(-1)
+    const best = fastestFree.get(side)
+    if (best === undefined || fit.params[i] < fit.params[best]) fastestFree.set(side, i)
+  }
+  const freeShells = shells.map((_, i) => shellOffset + i).filter((c) => !inLump.has(c))
+  const fastestShell = freeShells.length
+    ? freeShells.reduce((best, c) => (fit.params[c] < fit.params[best] ? c : best))
+    : undefined
+
+  const estimable = estimableTest(design)
+  const tMult = intervalMultiplier(fit)
+  const halfWidth = (c: Float64Array): number => {
+    if (!fit.covHalf || !Number.isFinite(tMult)) return NaN
+    const m = fit.covHalf[0].length
+    let variance = 0
+    for (let j = 0; j < m; j++) {
+      let acc = 0
+      for (let col = 0; col < k; col++) if (c[col] !== 0) acc += c[col] * fit.covHalf[col][j]
+      variance += acc * acc
+    }
+    return tMult * Math.sqrt(variance)
+  }
+  const dot = (c: Float64Array) => c.reduce((acc, v, i) => acc + v * fit.params[i], 0)
+
+  // Per-seat value of a lump: athletes weigh 1/n; a shell's whole-boat
+  // effect is converted to one seat's share via the crew's mean fraction.
+  const valueContrast = (members: number[]) => {
+    const ath = members.filter((c) => c < nA)
+    const nSeats = ath.length
+    const c = new Float64Array(k)
+    let fracSum = 0
+    let fracCount = 0
+    for (const a of ath) {
+      c[a] += 1 / nSeats
+      for (let r = 0; r < n; r++) {
+        if (x[r][a] !== 0) {
+          fracSum += x[r][a]
+          fracCount++
+        }
+      }
+    }
+    const frac = fracCount ? fracSum / fracCount : 1
+    for (const s of members) if (s >= nA) c[s] += 1 / (nSeats * frac)
+    return { c, nSeats, frac }
+  }
+  // Baseline: the same seats filled with the fastest free rower per side
+  // (and the fastest free shell); null when some seat has no free peer.
+  const baselineContrast = (members: number[]): Float64Array | null => {
+    const { c, nSeats, frac } = valueContrast(members)
+    const out = Float64Array.from(c)
+    for (const m of members) {
+      if (m < nA) {
+        const best = fastestFree.get(athletes[m].slice(-1))
+        if (best === undefined) return null
+        out[best] -= 1 / nSeats
+      } else {
+        if (fastestShell === undefined) return null
+        out[fastestShell] -= 1 / (nSeats * frac)
+      }
+    }
+    return out
+  }
+
+  const lumps: Lump[] = lumpCols.map((members, id) => ({
+    id,
+    members: members.map((c) => (c < nA ? athletes[c] : shells[c - shellOffset])),
+    behind: NaN,
+    lower: -Infinity,
+    upper: Infinity,
+    known: false,
+  }))
+  const values = lumpCols.map((m) => valueContrast(m).c)
+  const baselines = lumpCols.map((m) => {
+    const b = baselineContrast(m)
+    return b && estimable(b) ? b : null
+  })
+
+  // Lumps that can be told from each other form components.
+  const lp = lumps.map((_, i) => i)
+  const lfind = (i: number): number => (lp[i] === i ? i : (lp[i] = lfind(lp[i])))
+  for (let a = 0; a < lumps.length; a++) {
+    for (let b = a + 1; b < lumps.length; b++) {
+      if (estimable(values[a].map((v, i) => v - values[b][i]))) lp[lfind(a)] = lfind(b)
+    }
+  }
+  const components = new Set(lumps.map((_, i) => lfind(i)))
+  for (const root of components) {
+    const idx = lumps.map((_, i) => i).filter((i) => lfind(i) === root)
+    if (idx.every((i) => baselines[i] != null)) {
+      // Everyone measures against the fastest free rowers; the lump that
+      // beats them shows as Fastest.
+      const raw = idx.map((i) => dot(baselines[i]!))
+      const floor = Math.min(0, ...raw)
+      idx.forEach((i, j) => {
+        const half = halfWidth(baselines[i]!)
+        lumps[i].behind = raw[j] - floor
+        lumps[i].lower = lumps[i].behind - half
+        lumps[i].upper = lumps[i].behind + half
+        lumps[i].known = true
+      })
+    } else if (idx.length > 1) {
+      const vals = idx.map((i) => dot(values[i]))
+      const fastest = Math.min(...vals)
+      idx.forEach((i, j) => {
+        const mean = values[i].map((v, col) => v - idx.reduce((acc, o) => acc + values[o][col], 0) / idx.length)
+        const half = halfWidth(mean)
+        lumps[i].behind = vals[j] - fastest
+        lumps[i].lower = lumps[i].behind - half
+        lumps[i].upper = lumps[i].behind + half
+        lumps[i].known = true
+      })
+    }
+  }
+  return lumps
 }
 
 /** Deterministic PRNG (mulberry32) for reproducible simulations. */
@@ -214,6 +442,8 @@ export interface NamedShellStat {
   races: number
   /** False when the data cannot separate this boat from its crews. */
   comparable: boolean
+  /** Index into the fit's lumps when this boat is inseparable from its crew. */
+  lump: number | null
 }
 
 export function namedShellStats(design: Design, fit: FitResult): NamedShellStat[] {
@@ -228,6 +458,7 @@ export function namedShellStats(design: Design, fit: FitResult): NamedShellStat[
     behind: NaN,
     races: design.rows.filter((r) => r.shell === shell).length,
     comparable: groupOf.filter((g) => g === groupOf[i]).length > 1,
+    lump: null,
   }))
   const groups = new Set(groupOf)
   for (const g of groups) {
@@ -329,6 +560,7 @@ export function athleteStats(design: Design, fit: FitResult): AthleteStat[] {
       totalInPosition: 1,
       group: 0,
       comparable: false,
+      lump: null,
       rankLow: null,
       rankHigh: null,
       races: races[i],

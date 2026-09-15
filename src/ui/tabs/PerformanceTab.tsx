@@ -1,5 +1,6 @@
 import type { FitPayload } from '../../workers/fit.worker'
-import type { AthleteStat, NamedShellStat, ShellStat } from '../../engine/derived'
+import type { AthleteStat, Lump, NamedShellStat, ShellStat } from '../../engine/derived'
+import { VIZ_DARK, VIZ_LIGHT } from '../vizPalette'
 import { SortableTable, type Column } from '../SortableTable'
 import { OptionsSection } from '../OptionsPanel'
 import type { ControlState } from '../options'
@@ -23,33 +24,81 @@ const SIDE_NAMES: Record<string, string> = {
 }
 const SIDE_ORDER = ['Port', 'Starboard', 'Scull', 'Coxswain']
 
-const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
-  { key: 'name', label: 'Rower', value: (r) => r.name },
-  {
-    key: 'behind',
-    label: 'Behind',
-    num: true,
-    value: (r) => r.speedBehind,
-    render: (r) => (!r.comparable ? '' : r.speedBehind > 0 ? `+${fmt(r.speedBehind)}` : 'Fastest'),
-  },
-  {
-    key: 'ci',
-    label: 'Uncertainty',
-    num: true,
-    value: (r) => (r.upper - r.lower) / 2,
-    render: (r) =>
-      !r.comparable ? '∞' : Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : '',
-  },
-  { key: 'rank', label: 'Rank', num: true, value: (r) => r.rank || NaN, render: (r) => (r.rank || '') },
-  {
-    key: 'rankrange',
-    label: 'Rank 80%',
-    num: true,
-    value: (r) => (r.rankLow == null ? NaN : r.rankLow * 100 + (r.rankHigh ?? 0)),
-    render: (r) =>
-      r.rankLow == null ? '' : r.rankLow === r.rankHigh ? String(r.rankLow) : `${r.rankLow}-${r.rankHigh}`,
-  },
-  { key: 'races', label: 'Races', num: true, value: (r) => r.races },
+/** Group color for lump members: the categorical viz palette, by theme. */
+function lumpColor(id: number): string {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark'
+  const pal = (dark ? VIZ_DARK : VIZ_LIGHT).categorical
+  return pal[id % pal.length]
+}
+
+function GroupTag({ id }: { id: number }) {
+  return (
+    <span className="group-tag" style={{ background: lumpColor(id) }}>
+      Group {id + 1}
+    </span>
+  )
+}
+
+/** A lump member shows its lump's figures in the lump's color. */
+function lumpText(lump: Lump, text: string) {
+  return <span style={{ color: lumpColor(lump.id), fontWeight: 600 }}>{text}</span>
+}
+
+const behindText = (behind: number) => (behind > 0.05 ? `+${fmt(behind)}` : 'Fastest')
+const halfText = (lower: number, upper: number) => (Number.isFinite(lower) ? `±${fmt((upper - lower) / 2)}` : '')
+
+function athleteColumns(lumps: Lump[]): Array<Column<AthleteStat>> {
+  const lumpOf = (r: AthleteStat) => (r.lump == null ? null : lumps[r.lump])
+  return [
+    {
+      key: 'name',
+      label: 'Rower',
+      value: (r) => r.name,
+      render: (r) => (
+        <>
+          {r.name}
+          {r.lump != null && <GroupTag id={r.lump} />}
+        </>
+      ),
+    },
+    {
+      key: 'behind',
+      label: 'Behind',
+      num: true,
+      value: (r) => {
+        const l = lumpOf(r)
+        return l ? (l.known ? l.behind : NaN) : r.comparable ? r.speedBehind : NaN
+      },
+      render: (r) => {
+        const l = lumpOf(r)
+        if (l) return l.known ? lumpText(l, behindText(l.behind)) : ''
+        return r.comparable ? behindText(r.speedBehind) : ''
+      },
+    },
+    {
+      key: 'ci',
+      label: 'Uncertainty',
+      num: true,
+      value: (r) => {
+        const l = lumpOf(r)
+        return l ? (l.upper - l.lower) / 2 : (r.upper - r.lower) / 2
+      },
+      render: (r) => {
+        const l = lumpOf(r)
+        if (l) return l.known ? lumpText(l, halfText(l.lower, l.upper)) : ''
+        return r.comparable ? halfText(r.lower, r.upper) : ''
+      },
+    },
+    { key: 'rank', label: 'Rank', num: true, value: (r) => r.rank || NaN, render: (r) => r.rank || '' },
+    {
+      key: 'rankrange',
+      label: 'Rank 80%',
+      num: true,
+      value: (r) => (r.rankLow == null ? NaN : r.rankLow * 100 + (r.rankHigh ?? 0)),
+      render: (r) =>
+        r.rankLow == null ? '' : r.rankLow === r.rankHigh ? String(r.rankLow) : `${r.rankLow}-${r.rankHigh}`,
+    },
+    { key: 'races', label: 'Races', num: true, value: (r) => r.races },
   {
     key: 'maxcorr',
     label: 'Confounded With',
@@ -60,27 +109,54 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
         ? `${r.maxCorrelatedWith}${r.maxCorrelatedOthers ? ` +${r.maxCorrelatedOthers}` : ''} (${fmt(r.maxCorrelation, 2)})`
         : '',
   },
-]
+  ]
+}
 
-const NAMED_SHELL_COLUMNS: Array<Column<NamedShellStat>> = [
-  { key: 'shell', label: 'Shell', value: (r) => r.shell },
-  {
-    key: 'behind',
-    label: 'Behind',
-    num: true,
-    value: (r) => r.behind,
-    render: (r) => (!r.comparable ? '' : r.behind > 0.05 ? `+${fmt(r.behind)}` : 'Fastest'),
-  },
-  {
-    key: 'ci',
-    label: 'Uncertainty',
-    num: true,
-    value: (r) => (r.upper - r.lower) / 2,
-    render: (r) =>
-      !r.comparable ? '∞' : Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : '',
-  },
-  { key: 'races', label: 'Races', num: true, value: (r) => r.races },
-]
+function namedShellColumns(lumps: Lump[]): Array<Column<NamedShellStat>> {
+  const lumpOf = (r: NamedShellStat) => (r.lump == null ? null : lumps[r.lump])
+  return [
+    {
+      key: 'shell',
+      label: 'Shell',
+      value: (r) => r.shell,
+      render: (r) => (
+        <>
+          {r.shell}
+          {r.lump != null && <GroupTag id={r.lump} />}
+        </>
+      ),
+    },
+    {
+      key: 'behind',
+      label: 'Behind',
+      num: true,
+      value: (r) => {
+        const l = lumpOf(r)
+        return l ? (l.known ? l.behind : NaN) : r.comparable ? r.behind : NaN
+      },
+      render: (r) => {
+        const l = lumpOf(r)
+        if (l) return l.known ? lumpText(l, behindText(l.behind)) : ''
+        return r.comparable ? behindText(r.behind) : ''
+      },
+    },
+    {
+      key: 'ci',
+      label: 'Uncertainty',
+      num: true,
+      value: (r) => {
+        const l = lumpOf(r)
+        return l ? (l.upper - l.lower) / 2 : (r.upper - r.lower) / 2
+      },
+      render: (r) => {
+        const l = lumpOf(r)
+        if (l) return l.known ? lumpText(l, halfText(l.lower, l.upper)) : ''
+        return r.comparable ? halfText(r.lower, r.upper) : ''
+      },
+    },
+    { key: 'races', label: 'Races', num: true, value: (r) => r.races },
+  ]
+}
 
 function shellColumns(shells: ShellStat[]): Array<Column<ShellStat>> {
   const comparable = (s: ShellStat) => s.crossClassPieces > 0 || shells.length === 1
@@ -144,7 +220,7 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
           <ul className="hint-list">
             <li>Behind: seconds per 500m slower than the fastest rower on the same side.</li>
             <li>Port and starboard are never compared with each other.</li>
-            <li>∞: the data cannot tell this rower apart from anyone.</li>
+            <li>Group: rowers the data cannot tell apart; colored numbers are for the group as a whole.</li>
             <li>Rank 80%: the range of ranks the data supports.</li>
           </ul>
           <div className="side-cols">
@@ -152,7 +228,7 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
               <div className="side-col" key={side}>
                 <h2>{side}</h2>
                 <SortableTable
-                  columns={ATHLETE_COLUMNS}
+                  columns={athleteColumns(result.lumps)}
                   rows={bySide.get(side)!}
                   defaultSort="behind"
                   rowKey={(r) => r.name}
@@ -165,11 +241,11 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
               <h2>Shells</h2>
               <ul className="hint-list">
                 <li>Behind: seconds per 500m slower than the fastest boat.</li>
-                <li>∞: the boat always had the same crew, so the data cannot tell them apart.</li>
+                <li>Group: the boat and its crew cannot be told apart; colored numbers are for the group.</li>
               </ul>
               <div style={{ maxWidth: 520 }}>
                 <SortableTable
-                  columns={NAMED_SHELL_COLUMNS}
+                  columns={namedShellColumns(result.lumps)}
                   rows={result.namedShells}
                   defaultSort="behind"
                   rowKey={(r) => r.shell}
