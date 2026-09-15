@@ -54,8 +54,9 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
     key: 'maxcorr',
     label: 'Confounded With',
     value: (r) => r.maxCorrelation,
+    // Same cutoff as the Correlations tab; below it there is nothing to say.
     render: (r) =>
-      r.maxCorrelatedWith
+      r.maxCorrelatedWith && r.maxCorrelation >= 0.2
         ? `${r.maxCorrelatedWith}${r.maxCorrelatedOthers ? ` +${r.maxCorrelatedOthers}` : ''} (${fmt(r.maxCorrelation, 2)})`
         : '',
   },
