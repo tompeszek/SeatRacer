@@ -66,6 +66,8 @@ export interface ControlState {
   strength: keyof typeof STRENGTH_OPTIONS
   /** null = all shell classes in the file. */
   shells: string[] | null
+  /** Each named boat (Shell column) gets its own coefficient. */
+  shellEffects: boolean
 }
 
 export const DEFAULT_CONTROLS: ControlState = {
@@ -78,4 +80,14 @@ export const DEFAULT_CONTROLS: ControlState = {
   shrinkage: 'Off',
   strength: 'Medium',
   shells: null,
+  shellEffects: false,
+}
+
+/** Per-dataset overrides of DEFAULT_CONTROLS, applied when a dataset is first opened. */
+export const DATASET_DEFAULTS: Record<string, Partial<ControlState>> = {
+  '2026 SDRC HOCR Club 4+ Selection.csv': { shellEffects: true },
+}
+
+export function defaultControlsFor(dataset: string): ControlState {
+  return { ...DEFAULT_CONTROLS, ...(DATASET_DEFAULTS[dataset] ?? {}) }
 }

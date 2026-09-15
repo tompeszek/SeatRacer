@@ -10,7 +10,7 @@ import {
   BUNDLED_DATASETS,
   DEFAULT_DATASET,
   CLOSE_RACES_OPTIONS,
-  DEFAULT_CONTROLS,
+  defaultControlsFor,
   RECENCY_OPTIONS,
   STERN_BIAS_OPTIONS,
   STRENGTH_OPTIONS,
@@ -81,7 +81,25 @@ export function App() {
   }, [])
   const [uploads, setUploads] = useState<Upload[]>(() => loadStored('uploads', { list: [] as Upload[] }).list)
   const [csvText, setCsvText] = useState<string | null>(null)
-  const [controls, setControls] = useState<ControlState>(() => loadStored('controls', DEFAULT_CONTROLS))
+  // Controls are remembered per dataset; a dataset opened for the first time
+  // starts from its own defaults (DATASET_DEFAULTS) over the global ones.
+  const [controlsByDataset, setControlsByDataset] = useState<Record<string, ControlState>>(
+    () => loadStored('controlsByDataset', { map: {} as Record<string, ControlState> }).map,
+  )
+  const controls: ControlState = useMemo(
+    () => ({ ...defaultControlsFor(datasetName), ...(controlsByDataset[datasetName] ?? {}) }),
+    [controlsByDataset, datasetName],
+  )
+  const setControls = useCallback(
+    (next: ControlState) => {
+      setControlsByDataset((prev) => {
+        const map = { ...prev, [datasetName]: next }
+        store('controlsByDataset', { map })
+        return map
+      })
+    },
+    [datasetName],
+  )
   const [ergs, setErgs] = useState<Record<string, string>>(() => loadStored('ergs', { map: {} as Record<string, string> }).map)
   const [result, setResult] = useState<FitPayload | null>(null)
   const [fitting, setFitting] = useState(false)
@@ -159,6 +177,7 @@ export function App() {
       weightStern: STERN_BIAS_OPTIONS[controls.stern].value,
       includeCoxswains: controls.coxswains,
       shellClasses: controls.shells ?? allShells,
+      includeShells: controls.shellEffects,
     }),
     [controls, allShells],
   )
@@ -191,7 +210,6 @@ export function App() {
   // Refit on any input change, debounced. Slow derived computations
   // (influence, trends) are invalidated and rerun on demand.
   useEffect(() => {
-    store('controls', controls)
     setInfluence(null)
     setTimeSeries(null)
     if (!csvText || rawRows.length === 0) {
@@ -213,7 +231,7 @@ export function App() {
         })
     }, 120)
     return () => clearTimeout(timer)
-  }, [csvText, rawRows, settings, spec, controls])
+  }, [csvText, rawRows, settings, spec])
 
   const runInfluence = useCallback(() => {
     if (!csvText) return

@@ -136,6 +136,32 @@ export interface ShellStat {
   crossClassPieces: number
 }
 
+/** One named boat's effect, when named shells are modeled. */
+export interface NamedShellStat {
+  shell: string
+  coefficient: number
+  lower: number
+  upper: number
+  /** Seconds per 500m behind the fastest named shell. */
+  behind: number
+  races: number
+}
+
+export function namedShellStats(design: Design, fit: FitResult): NamedShellStat[] {
+  const offset = design.athletes.length + design.shellClasses.length
+  const stats = design.shells.map((shell, i) => ({
+    shell,
+    coefficient: fit.params[offset + i],
+    lower: fit.ciLower[offset + i],
+    upper: fit.ciUpper[offset + i],
+    behind: 0,
+    races: design.rows.filter((r) => r.shell === shell).length,
+  }))
+  const fastest = Math.min(...stats.map((s) => s.coefficient))
+  for (const s of stats) s.behind = s.coefficient - fastest
+  return stats
+}
+
 export interface FittedRow {
   piece: string
   crew: string

@@ -1,5 +1,6 @@
 // CSV parsing for the SeatRacer schema:
 //   Race Session (date), Piece, KM, Rigging, Personnel, Result
+// plus an optional Shell column naming the boat.
 import type { RaceRow } from './types'
 
 /** Minimal CSV parser: handles quoted fields, CRLF, and a UTF-8 BOM. */
@@ -51,10 +52,12 @@ export function parseRaceCsv(text: string): RaceRow[] {
     if (i < 0) throw new Error(`CSV is missing the "${col}" column`)
     idx[col] = i
   }
+  const shellIdx = header.indexOf('Shell')
   const rows: RaceRow[] = []
   for (const line of grid.slice(1)) {
     const get = (c: string) => (line[idx[c]] ?? '').trim()
     if (get('Personnel') === '' && get('Result') === '') continue
+    const shell = shellIdx < 0 ? '' : (line[shellIdx] ?? '').trim()
     rows.push({
       dateRaw: get('Race Session (date)'),
       pieceNumber: Number(get('Piece')),
@@ -62,6 +65,7 @@ export function parseRaceCsv(text: string): RaceRow[] {
       rigging: get('Rigging'),
       personnel: get('Personnel'),
       result: get('Result'),
+      ...(shell ? { shell } : {}),
     })
   }
   return rows

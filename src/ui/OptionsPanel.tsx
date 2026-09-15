@@ -117,8 +117,15 @@ export function OptionsPanel({ controls, allShells, onChange }: Props) {
         caption="Whether coxswains get their own coefficient"
         onSelect={(key) => set({ coxswains: key === 'Include' })}
       />
+      <PillRow
+        label="Named Shells"
+        options={['Include', 'Exclude']}
+        active={controls.shellEffects ? 'Include' : 'Exclude'}
+        caption="Whether each named boat gets its own coefficient (needs a Shell column in the data)"
+        onSelect={(key) => set({ shellEffects: key === 'Include' })}
+      />
       <div className="opt-row">
-        <span className="opt-label">Shells</span>
+        <span className="opt-label">Shell Classes</span>
         <div className="pills">
           {allShells.map((shell) => {
             const active = selectedShells.includes(shell)

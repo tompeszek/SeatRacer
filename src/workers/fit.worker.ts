@@ -8,6 +8,7 @@ import { fitModel } from '../engine/model'
 import {
   athleteStats,
   shellStats,
+  namedShellStats,
   fittedRows,
   athletePairs,
   biasStats,
@@ -35,6 +36,7 @@ export interface FitRequest {
 export interface FitPayload {
   athletes: ReturnType<typeof athleteStats>
   shells: ReturnType<typeof shellStats>
+  namedShells: ReturnType<typeof namedShellStats>
   fitted: ReturnType<typeof fittedRows>
   pairs: ReturnType<typeof athletePairs>
   bias: ReturnType<typeof biasStats>
@@ -74,6 +76,7 @@ export function runFit(req: FitRequest): FitPayload {
     return {
       athletes: [],
       shells: [],
+      namedShells: [],
       fitted: [],
       pairs: [],
       bias: [],
@@ -99,6 +102,7 @@ export function runFit(req: FitRequest): FitPayload {
   return {
     athletes: athleteStats(design, fit),
     shells: shellStats(design, fit),
+    namedShells: namedShellStats(design, fit),
     fitted: fittedRows(design, fit),
     pairs: athletePairs(design, fit, tCdf),
     bias: biasStats(design, fit, tCdf),

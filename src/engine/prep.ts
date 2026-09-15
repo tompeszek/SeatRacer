@@ -99,6 +99,7 @@ export function prepRows(raw: RaceRow[], settings: WeightSettings): PreppedRow[]
       rigging: r.rigging,
       personnel: suffixPersonnel(r.rigging, r.personnel),
       shellClass: shellClassFromRigging(r.rigging),
+      shell: r.shell?.trim() || null,
       timeSeconds,
       timePer500m: timeSeconds / (r.km * 2.0),
       closestMargin: null,
@@ -124,6 +125,19 @@ export function collectAthletes(rows: PreppedRow[], includeCoxswains: boolean): 
         seen.add(name)
         if (includeCoxswains || !name.endsWith('ᶜ')) out.push(name)
       }
+    }
+  }
+  return out
+}
+
+/** Named shells in first-appearance order (rows without one are skipped). */
+export function collectShells(rows: PreppedRow[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const row of rows) {
+    if (row.shell && !seen.has(row.shell)) {
+      seen.add(row.shell)
+      out.push(row.shell)
     }
   }
   return out

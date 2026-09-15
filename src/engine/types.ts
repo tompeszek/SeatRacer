@@ -13,6 +13,8 @@ export interface RaceRow {
   personnel: string
   /** Result time string, MM:SS or MM:SS.f. */
   result: string
+  /** Named boat from the optional Shell column, e.g. "Prescott". */
+  shell?: string
 }
 
 /** A prepped row: parsed, classified, suffixed, ready for the design matrix. */
@@ -28,6 +30,8 @@ export interface PreppedRow {
   /** Personnel with rigging superscripts appended (and Cox inserted if implied). */
   personnel: string[]
   shellClass: string
+  /** Named boat, or null when the file has no Shell column. */
+  shell: string | null
   timeSeconds: number
   /** Pace in seconds per 500m: timeSeconds / (km * 2). */
   timePer500m: number
@@ -50,6 +54,8 @@ export interface WeightSettings {
   includeCoxswains: boolean
   /** Shell classes to keep. */
   shellClasses: string[]
+  /** Give each named boat (Shell column) its own coefficient. */
+  includeShells?: boolean
 }
 
 export type Loss =
@@ -71,10 +77,15 @@ export interface ModelSpec {
 
 /** Design matrix and metadata for one fit. */
 export interface Design {
-  /** Column names: athletes, then shell classes, then piece dummies. */
+  /**
+   * Column names: athletes, then shell classes, then named shells (as
+   * "Shell_<name>", only when includeShells), then piece dummies.
+   */
   columns: string[]
   athletes: string[]
   shellClasses: string[]
+  /** Named boats with their own column; empty unless includeShells. */
+  shells: string[]
   pieces: string[]
   /** Row-major matrix, rows.length x columns.length. */
   x: Float64Array[]

@@ -11,6 +11,7 @@ import type { Loss, PreppedRow, Shrinkage, WeightSettings } from './types'
 import { prepRows } from './prep'
 import type { RaceRow } from './types'
 import { boatFractions } from './weights'
+import { shellColumn } from './design'
 import { madAboutZero } from './robust'
 
 export interface Candidate {
@@ -115,6 +116,11 @@ export function fitCandidate(
   for (const row of rows) {
     if (!columns.has(row.shellClass)) columns.set(row.shellClass, columns.size)
   }
+  if (settings.includeShells) {
+    for (const row of rows) {
+      if (row.shell && !columns.has(shellColumn(row.shell))) columns.set(shellColumn(row.shell), columns.size)
+    }
+  }
   for (const row of rows) {
     const key = `Piece_${row.piece}`
     if (!columns.has(key)) columns.set(key, columns.size)
@@ -129,6 +135,10 @@ export function fitCandidate(
       if (c !== undefined) line[c] = frac
     }
     line[columns.get(row.shellClass)!] = 1
+    if (settings.includeShells && row.shell) {
+      const c = columns.get(shellColumn(row.shell))
+      if (c !== undefined) line[c] = 1
+    }
     line[columns.get(`Piece_${row.piece}`)!] = 1
     return line
   }
@@ -300,6 +310,11 @@ export function walkForward(
         const shellIdx = solved.columns.get(row.shellClass)
         if (shellIdx === undefined) return null // shell class never seen
         pace += solved.coef[shellIdx]
+        if (settings.includeShells && row.shell) {
+          // A boat not yet seen contributes nothing rather than voiding the row.
+          const namedIdx = solved.columns.get(shellColumn(row.shell))
+          if (namedIdx !== undefined) pace += solved.coef[namedIdx]
+        }
         for (const [name, frac] of fractions) {
           if (!settings.includeCoxswains && name.endsWith('ᶜ')) continue
           const idx = solved.columns.get(name)

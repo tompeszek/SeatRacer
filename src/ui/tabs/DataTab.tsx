@@ -44,18 +44,24 @@ function compareRows(a: RaceRow, b: RaceRow): number {
   )
 }
 
-const COLUMNS: Array<Column<RaceRow & { index: number }>> = [
-  { key: 'date', label: 'Session', value: dateValue, render: (r) => r.dateRaw },
-  { key: 'piece', label: 'Piece', num: true, value: (r) => r.pieceNumber },
-  { key: 'km', label: 'KM', num: true, value: (r) => r.km },
-  { key: 'rigging', label: 'Rigging', value: (r) => r.rigging },
-  { key: 'personnel', label: 'Personnel', value: (r) => r.personnel },
-  { key: 'result', label: 'Result', num: true, value: resultValue, render: (r) => r.result },
-]
+type IndexedRow = RaceRow & { index: number }
+
+function columnsFor(hasShell: boolean): Array<Column<IndexedRow>> {
+  return [
+    { key: 'date', label: 'Session', value: dateValue, render: (r) => r.dateRaw },
+    { key: 'piece', label: 'Piece', num: true, value: (r) => r.pieceNumber },
+    { key: 'km', label: 'KM', num: true, value: (r) => r.km },
+    { key: 'rigging', label: 'Rigging', value: (r) => r.rigging },
+    ...(hasShell ? [{ key: 'shell', label: 'Shell', value: (r: IndexedRow) => r.shell ?? '' }] : []),
+    { key: 'personnel', label: 'Personnel', value: (r) => r.personnel },
+    { key: 'result', label: 'Result', num: true, value: resultValue, render: (r) => r.result },
+  ]
+}
 
 export function DataTab({ rows, datasetNames, selected, onSelect, onUpload, controls, allShells, onControls }: Props) {
   const fileInput = useRef<HTMLInputElement>(null)
   const indexed = rows.map((r, index) => ({ ...r, index })).sort(compareRows)
+  const columns = columnsFor(rows.some((r) => r.shell))
 
   return (
     <>
@@ -93,13 +99,14 @@ export function DataTab({ rows, datasetNames, selected, onSelect, onUpload, cont
       <OptionsSection controls={controls} allShells={allShells} onControls={onControls} />
       <p className="hint">
         Each row is one boat's result in one piece. Uploaded files need the columns Race Session
-        (date), Piece, KM, Rigging, Personnel, and Result.
+        (date), Piece, KM, Rigging, Personnel, and Result. An optional Shell column names the boat
+        so it can be modeled with Named Shells.
       </p>
       {rows.length === 0 ? (
         <div className="empty-state">Select or upload a dataset to begin.</div>
       ) : (
         <SortableTable
-          columns={COLUMNS}
+          columns={columns}
           rows={indexed}
           rowKey={(r) => String(r.index)}
           groupKey={(r) => r.dateRaw}

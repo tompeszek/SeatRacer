@@ -1,5 +1,5 @@
 import type { FitPayload } from '../../workers/fit.worker'
-import type { AthleteStat, ShellStat } from '../../engine/derived'
+import type { AthleteStat, NamedShellStat, ShellStat } from '../../engine/derived'
 import { SortableTable, type Column } from '../SortableTable'
 import { OptionsSection } from '../OptionsPanel'
 import type { ControlState } from '../options'
@@ -54,6 +54,25 @@ const ATHLETE_COLUMNS: Array<Column<AthleteStat>> = [
     value: (r) => r.maxCorrelation,
     render: (r) => (r.maxCorrelatedWith ? `${r.maxCorrelatedWith} (${fmt(r.maxCorrelation, 2)})` : ''),
   },
+]
+
+const NAMED_SHELL_COLUMNS: Array<Column<NamedShellStat>> = [
+  { key: 'shell', label: 'Shell', value: (r) => r.shell },
+  {
+    key: 'behind',
+    label: 'Behind',
+    num: true,
+    value: (r) => r.behind,
+    render: (r) => (r.behind > 0.05 ? `+${fmt(r.behind)}` : 'Fastest'),
+  },
+  {
+    key: 'ci',
+    label: 'Uncertainty',
+    num: true,
+    value: (r) => (r.upper - r.lower) / 2,
+    render: (r) => (Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : ''),
+  },
+  { key: 'races', label: 'Races', num: true, value: (r) => r.races },
 ]
 
 function shellColumns(shells: ShellStat[]): Array<Column<ShellStat>> {
@@ -139,6 +158,25 @@ export function PerformanceTab({ result, fitting, controls, allShells, onControl
               </div>
             ))}
           </div>
+          {result.namedShells.length > 0 && (
+            <>
+              <h2>Shells</h2>
+              <p className="hint">
+                Behind is each named boat's estimated cost in pace, in seconds per 500m, relative
+                to the fastest boat, with the crews' own effects taken out. When a boat always
+                carries the same rowers, the data cannot tell the boat from those rowers: the
+                model splits the gap between them, and both show wide uncertainty.
+              </p>
+              <div style={{ maxWidth: 520 }}>
+                <SortableTable
+                  columns={NAMED_SHELL_COLUMNS}
+                  rows={result.namedShells}
+                  defaultSort="behind"
+                  rowKey={(r) => r.shell}
+                />
+              </div>
+            </>
+          )}
           <h2>Shell Classes</h2>
           <p className="hint">
             Behind (Average Crew) compares boat types fairly: the predicted pace of each class

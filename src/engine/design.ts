@@ -1,12 +1,18 @@
 // Design matrix construction, matching the Python engine's
 // pd.get_dummies(df[['Piece'] + athletes + shell_classes]) layout:
 // athlete fraction columns, then shell class dummies, then piece dummies.
+// Named-shell dummies (an addition with no Python counterpart) sit between
+// the shell classes and the pieces, so every fixture layout is unchanged
+// when they are off.
 import type { Design, PreppedRow, WeightSettings } from './types'
-import { collectAthletes, collectShellClasses } from './prep'
+import { collectAthletes, collectShellClasses, collectShells } from './prep'
+
+export const shellColumn = (shell: string) => `Shell_${shell}`
 
 export function buildDesign(rows: PreppedRow[], settings: WeightSettings): Design {
   const athletes = collectAthletes(rows, settings.includeCoxswains)
   const shellClasses = collectShellClasses(rows)
+  const shells = settings.includeShells ? collectShells(rows) : []
   const pieceSet = new Set<string>()
   for (const row of rows) pieceSet.add(row.piece)
   // pandas get_dummies emits dummy columns in sorted category order.
@@ -15,11 +21,14 @@ export function buildDesign(rows: PreppedRow[], settings: WeightSettings): Desig
   const columns = [
     ...athletes,
     ...shellClasses,
+    ...shells.map(shellColumn),
     ...pieces.map((p) => `Piece_${p}`),
   ]
   const nCols = columns.length
-  const pieceIndex = new Map(pieces.map((p, i) => [p, athletes.length + shellClasses.length + i]))
+  const fixedCols = athletes.length + shellClasses.length + shells.length
+  const pieceIndex = new Map(pieces.map((p, i) => [p, fixedCols + i]))
   const shellIndex = new Map(shellClasses.map((s, i) => [s, athletes.length + i]))
+  const namedIndex = new Map(shells.map((s, i) => [s, athletes.length + shellClasses.length + i]))
   const athleteIndex = new Map(athletes.map((a, i) => [a, i]))
 
   const x: Float64Array[] = []
@@ -32,13 +41,15 @@ export function buildDesign(rows: PreppedRow[], settings: WeightSettings): Desig
       if (c !== undefined) line[c] = frac
     }
     line[shellIndex.get(row.shellClass)!] = 1
+    const named = row.shell ? namedIndex.get(row.shell) : undefined
+    if (named !== undefined) line[named] = 1
     line[pieceIndex.get(row.piece)!] = 1
     x.push(line)
     y[r] = row.timePer500m
     w[r] = row.totalWeight
   })
 
-  return { columns, athletes, shellClasses, pieces, x, y, w, rows }
+  return { columns, athletes, shellClasses, shells, pieces, x, y, w, rows }
 }
 
 /**
