@@ -68,14 +68,15 @@ const NAMED_SHELL_COLUMNS: Array<Column<NamedShellStat>> = [
     label: 'Behind',
     num: true,
     value: (r) => r.behind,
-    render: (r) => (r.behind > 0.05 ? `+${fmt(r.behind)}` : 'Fastest'),
+    render: (r) => (!r.comparable ? '' : r.behind > 0.05 ? `+${fmt(r.behind)}` : 'Fastest'),
   },
   {
     key: 'ci',
     label: 'Uncertainty',
     num: true,
     value: (r) => (r.upper - r.lower) / 2,
-    render: (r) => (Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : ''),
+    render: (r) =>
+      !r.comparable ? '∞' : Number.isFinite(r.lower) ? `±${fmt((r.upper - r.lower) / 2)}` : '',
   },
   { key: 'races', label: 'Races', num: true, value: (r) => r.races },
 ]
@@ -172,8 +173,8 @@ export function PerformanceTab({ result, fitting, controls, defaults, allShells,
               <p className="hint">
                 Behind is each named boat's estimated cost in pace, in seconds per 500m, relative
                 to the fastest boat, with the crews' own effects taken out. When a boat always
-                carries the same rowers, the data cannot tell the boat from those rowers: the
-                model splits the gap between them, and both show wide uncertainty.
+                carries the same rowers, the data cannot tell the boat from those rowers, so it
+                shows no gap and an infinite uncertainty.
               </p>
               <div style={{ maxWidth: 520 }}>
                 <SortableTable

@@ -57,8 +57,21 @@ export interface AthleteStat {
  * is transitive, so union-find within each side yields the groups.
  */
 export function comparisonGroups(design: Design): number[] {
-  const nAthletes = design.athletes.length
-  const parent = design.athletes.map((_, i) => i)
+  return columnGroups(
+    design,
+    design.athletes.map((_, i) => i),
+    (a, b) => design.athletes[a].slice(-1) === design.athletes[b].slice(-1),
+  )
+}
+
+/** Comparison groups over any set of design columns (see comparisonGroups). */
+export function columnGroups(
+  design: Design,
+  cols: number[],
+  eligible: (a: number, b: number) => boolean = () => true,
+): number[] {
+  const nAthletes = cols.length
+  const parent = cols.map((_, i) => i)
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])))
   if (nAthletes > 0 && design.x.length > 0) {
     const X = new Matrix(design.x.map((r) => Array.from(r)))
@@ -70,10 +83,10 @@ export function comparisonGroups(design: Design): number[] {
     s.forEach((v, j) => {
       if (v > cut) kept.push(j)
     })
-    const p = design.athletes.map((_, i) => kept.map((j) => V.get(i, j)))
+    const p = cols.map((c) => kept.map((j) => V.get(c, j)))
     for (let i = 0; i < nAthletes; i++) {
       for (let j = i + 1; j < nAthletes; j++) {
-        if (design.athletes[i].slice(-1) !== design.athletes[j].slice(-1)) continue
+        if (!eligible(i, j)) continue
         let d2 = 0
         for (let m = 0; m < kept.length; m++) d2 += (p[i][m] - p[j][m]) ** 2
         if (Math.abs(d2 - 2) < 1e-6) parent[find(i)] = find(j)
@@ -81,7 +94,7 @@ export function comparisonGroups(design: Design): number[] {
     }
   }
   const ids = new Map<number, number>()
-  return design.athletes.map((_, i) => {
+  return cols.map((_, i) => {
     const root = find(i)
     if (!ids.has(root)) ids.set(root, ids.size)
     return ids.get(root)!
@@ -196,23 +209,38 @@ export interface NamedShellStat {
   coefficient: number
   lower: number
   upper: number
-  /** Seconds per 500m behind the fastest named shell. */
+  /** Seconds per 500m behind the fastest comparable shell; NaN if none. */
   behind: number
   races: number
+  /** False when the data cannot separate this boat from its crews. */
+  comparable: boolean
 }
 
 export function namedShellStats(design: Design, fit: FitResult): NamedShellStat[] {
   const offset = design.athletes.length + design.shellClasses.length
-  const stats = design.shells.map((shell, i) => ({
+  const cols = design.shells.map((_, i) => offset + i)
+  const groupOf = columnGroups(design, cols)
+  const stats: NamedShellStat[] = design.shells.map((shell, i) => ({
     shell,
     coefficient: fit.params[offset + i],
-    lower: fit.ciLower[offset + i],
-    upper: fit.ciUpper[offset + i],
-    behind: 0,
+    lower: -Infinity,
+    upper: Infinity,
+    behind: NaN,
     races: design.rows.filter((r) => r.shell === shell).length,
+    comparable: groupOf.filter((g) => g === groupOf[i]).length > 1,
   }))
-  const fastest = Math.min(...stats.map((s) => s.coefficient))
-  for (const s of stats) s.behind = s.coefficient - fastest
+  const groups = new Set(groupOf)
+  for (const g of groups) {
+    const members = stats.filter((_, i) => groupOf[i] === g)
+    if (members.length < 2) continue
+    const fastest = Math.min(...members.map((s) => s.coefficient))
+    members.forEach((s) => {
+      const i = stats.indexOf(s)
+      s.behind = s.coefficient - fastest
+      s.lower = fit.ciLower[offset + i]
+      s.upper = fit.ciUpper[offset + i]
+    })
+  }
   return stats
 }
 
