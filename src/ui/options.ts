@@ -83,11 +83,19 @@ export const DEFAULT_CONTROLS: ControlState = {
   shellEffects: false,
 }
 
-/** Per-dataset overrides of DEFAULT_CONTROLS, applied when a dataset is first opened. */
+/**
+ * Owner-set starting controls per bundled dataset, over DEFAULT_CONTROLS.
+ * Users can change the controls for a dataset (remembered in their browser)
+ * and reset back to these; only this file changes the defaults themselves.
+ */
 export const DATASET_DEFAULTS: Record<string, Partial<ControlState>> = {
   '2026 SDRC HOCR Club 4+ Selection.csv': { shellEffects: true },
 }
 
 export function defaultControlsFor(dataset: string): ControlState {
   return { ...DEFAULT_CONTROLS, ...(DATASET_DEFAULTS[dataset] ?? {}) }
+}
+
+export function sameControls(a: ControlState, b: ControlState): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
 }

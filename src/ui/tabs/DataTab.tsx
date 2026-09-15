@@ -12,6 +12,7 @@ interface Props {
   onSelect: (name: string) => void
   onUpload: (name: string, text: string) => void
   controls: ControlState
+  defaults: ControlState
   allShells: string[]
   onControls: (c: ControlState) => void
 }
@@ -58,7 +59,7 @@ function columnsFor(hasShell: boolean): Array<Column<IndexedRow>> {
   ]
 }
 
-export function DataTab({ rows, datasetNames, selected, onSelect, onUpload, controls, allShells, onControls }: Props) {
+export function DataTab({ rows, datasetNames, selected, onSelect, onUpload, controls, defaults, allShells, onControls }: Props) {
   const fileInput = useRef<HTMLInputElement>(null)
   const indexed = rows.map((r, index) => ({ ...r, index })).sort(compareRows)
   const columns = columnsFor(rows.some((r) => r.shell))
@@ -96,7 +97,7 @@ export function DataTab({ rows, datasetNames, selected, onSelect, onUpload, cont
         </label>
         <span className="count-pill">{rows.length} results</span>
       </div>
-      <OptionsSection controls={controls} allShells={allShells} onControls={onControls} />
+      <OptionsSection controls={controls} defaults={defaults} allShells={allShells} onControls={onControls} />
       <p className="hint">
         Each row is one boat's result in one piece. Uploaded files need the columns Race Session
         (date), Piece, KM, Rigging, Personnel, and Result. An optional Shell column names the boat

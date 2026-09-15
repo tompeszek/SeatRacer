@@ -498,6 +498,12 @@ a.btn-outline {
   text-decoration: none;
 }
 
+.btn-outline.btn-small {
+  padding: 3px 10px;
+  font-size: 12px;
+  margin-left: auto;
+}
+
 .btn-flat {
   background: transparent;
   color: var(--primary);

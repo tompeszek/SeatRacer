@@ -1,5 +1,6 @@
 import type { ControlState } from './options'
 import {
+  sameControls,
   CLOSE_RACES_OPTIONS,
   LOSS_OPTIONS,
   LP_P_OPTIONS,
@@ -39,24 +40,46 @@ function PillRow({ label, options, active, caption, onSelect }: PillRowProps) {
 
 interface Props {
   controls: ControlState
+  /** The dataset's owner-set defaults; shows Reset when controls differ. */
+  defaults: ControlState
   allShells: string[]
   onChange: (next: ControlState) => void
 }
 
 export function OptionsSection(props: {
   controls: ControlState
+  defaults: ControlState
   allShells: string[]
   onControls: (c: ControlState) => void
 }) {
-  return <OptionsPanel controls={props.controls} allShells={props.allShells} onChange={props.onControls} />
+  return (
+    <OptionsPanel
+      controls={props.controls}
+      defaults={props.defaults}
+      allShells={props.allShells}
+      onChange={props.onControls}
+    />
+  )
 }
 
-export function OptionsPanel({ controls, allShells, onChange }: Props) {
+export function OptionsPanel({ controls, defaults, allShells, onChange }: Props) {
   const set = (patch: Partial<ControlState>) => onChange({ ...controls, ...patch })
   const selectedShells = controls.shells ?? allShells
+  const modified = !sameControls(controls, defaults)
 
   return (
     <div className="options-box">
+      <div className="opt-row">
+        <span className="opt-label">Settings</span>
+        <span className="opt-caption">
+          {modified ? 'Changed from the dataset defaults in this browser' : 'Dataset defaults'}
+        </span>
+        {modified && (
+          <button className="btn-outline btn-small" onClick={() => onChange(defaults)}>
+            Reset to Defaults
+          </button>
+        )}
+      </div>
       <PillRow
         label="Error Scoring"
         options={Object.keys(LOSS_OPTIONS)}

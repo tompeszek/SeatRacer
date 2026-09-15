@@ -86,9 +86,10 @@ export function App() {
   const [controlsByDataset, setControlsByDataset] = useState<Record<string, ControlState>>(
     () => loadStored('controlsByDataset', { map: {} as Record<string, ControlState> }).map,
   )
+  const defaults = useMemo(() => defaultControlsFor(datasetName), [datasetName])
   const controls: ControlState = useMemo(
-    () => ({ ...defaultControlsFor(datasetName), ...(controlsByDataset[datasetName] ?? {}) }),
-    [controlsByDataset, datasetName],
+    () => ({ ...defaults, ...(controlsByDataset[datasetName] ?? {}) }),
+    [controlsByDataset, datasetName, defaults],
   )
   const setControls = useCallback(
     (next: ControlState) => {
@@ -328,6 +329,7 @@ export function App() {
             onSelect={selectDataset}
             onUpload={onUpload}
             controls={controls}
+            defaults={defaults}
             allShells={allShells}
             onControls={setControls}
           />
@@ -338,6 +340,7 @@ export function App() {
             result={result}
             fitting={fitting}
             controls={controls}
+            defaults={defaults}
             allShells={allShells}
             onControls={setControls}
           />

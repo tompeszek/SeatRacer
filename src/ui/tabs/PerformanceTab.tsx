@@ -8,6 +8,7 @@ interface Props {
   result: FitPayload | null
   fitting: boolean
   controls: ControlState
+  defaults: ControlState
   allShells: string[]
   onControls: (c: ControlState) => void
 }
@@ -112,7 +113,7 @@ function shellColumns(shells: ShellStat[]): Array<Column<ShellStat>> {
   ]
 }
 
-export function PerformanceTab({ result, fitting, controls, allShells, onControls }: Props) {
+export function PerformanceTab({ result, fitting, controls, defaults, allShells, onControls }: Props) {
   const bySide = new Map<string, AthleteStat[]>()
   for (const a of result?.athletes ?? []) {
     const side = SIDE_NAMES[a.suffix] ?? 'Other'
@@ -129,7 +130,7 @@ export function PerformanceTab({ result, fitting, controls, allShells, onControl
         <h1>Performance</h1>
         {fitting && <span className="hint">Fitting...</span>}
       </div>
-      <OptionsSection controls={controls} allShells={allShells} onControls={onControls} />
+      <OptionsSection controls={controls} defaults={defaults} allShells={allShells} onControls={onControls} />
       {!result || result.athletes.length === 0 ? (
         <div className="empty-state">Load a dataset on the Data tab to see athlete estimates.</div>
       ) : (
